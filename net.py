@@ -198,7 +198,8 @@ class Net(Tools):
         for port in port_list:
             res = self.test_port(port, ip)
             if 'fail' in res: self.scan_res = (ip, port, res[0], res[1], res[2])
-            else: self.scan_res = (ip, port, 'ok', self.sock_recv_data)
+            else: self.scan_res = (ip, port, 'ok', res)
+            
             if self.verbose > 0: 
                 if 'ok' in self.scan_res[2]: print self.scan_res[1], self.scan_res[2]
             self.scan_dict[port] = self.scan_res
