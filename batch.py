@@ -37,6 +37,9 @@ class Batch(Tools, Mnet):
         and return a host list and ip list
         will only add entries if they do not already exist in the host list
         """
+        try: view_list.sort()
+        except: view_list = [view_list]
+        
         for host in view_list:
             if host not in self.host_list:
                 try: ip = self.dev_con.find_ip(host)
@@ -92,10 +95,12 @@ class Batch(Tools, Mnet):
         print 'command(s) to run %s \n' % cmd_list
         
         for host in self.host_list:
-            print 'connecting to %s ' % host
+            self.ses_con.ip = self.dev_con.find_ip(host)
+            self.ses_con.host = host.upper()
+            print 'connecting to %s at %s' % (host, self.ses_con.ip)
             res = self.ses_con.test_session()
             if res != 'fail': 
-                raw = self.ses_con.py_session()
+                raw = self.ses_con.py_session(cmd_list)
                 if not raw: raw = 'error no output'
                 out[host] = raw
 
@@ -104,18 +109,20 @@ class Batch(Tools, Mnet):
     def com(self, q, view_list=[]):
         """
         \n Batch commands
-        \n search        search the device list
-        \n add            add new hosts to the batch list
-        \n clear          delete the batch list
+        \n help         display this help information
+        \n search       search the device list
+        \n add          add new hosts to the batch list
+        \n clear        delete the batch list
         \n remove       remove host entry(s) from batch list
-        \n view ip       view ip address list
+        \n view ip      view ip address list
         \n view host    view host list
-        \n view all       view ip and host combined
-        \n ping            perform a multithreaded ping on ip_list
-        \n rlook           perfrom a multithreaded reverse dns lookup on ip_list
-        \n vty / tty      connect to vty on devices and run a command(s) and store screen output
+        \n view all     view ip and host combined
+        \n ping         perform a multithreaded ping on ip_list
+        \n rlook        perfrom a multithreaded reverse dns lookup on ip_list
+        \n vty / tty    connect to vty on devices and run a command(s) and store screen output
         
         """
+        if 'help' in q: print self.com.__doc__
         
         if 'search' in q: return self.dev_con.search_func(q[7:])
         
