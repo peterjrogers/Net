@@ -1,7 +1,8 @@
 from tools import Tools
-import ports
+import ports, protocols
 
 ports_con = ports.Ports()
+protocol_con = protocols.Protocols()
 
 class Cache_flow(Tools):
     def __init__(self, verbose=0):
@@ -28,55 +29,64 @@ class Cache_flow(Tools):
         (C) Intelligent Planet 2013
         """
         
+        self.load_file = 'c:/cache_load'
         self.limit = 200
         self.verbose = verbose
         self.cache_dict = {}
-        self.protocol_dict = {1:'ICMP',2:'IGMP',4:'IP',6:'TCP',8:'EGP',9:'IGP',17:'UDP',50:'ESP', 88:'IGRP',89:'OSPF',94:'IPIP'}
         self.display_heading = '\nSrcIPaddress       SrcPort          DstIPaddress       DstPort        Protocol    Packets\n'
         
         
                 
     def test(self):
-        file = open('c:/R++', 'rU')
+        file = open(self.load_file, 'rU')
         self.cache_dict = {}
         self.load(file)
-        #self.out = self.display()
-        #self.view(self.out)
         res = self.top_talk()
         out = self.display(res)
         self.view(out)
         
         
     def load(self, res):
-        start = 0
         for row in res:
             if row:
-                if 'SrcIf' in row: start +=1
-                if self.verbose > 0: print row
-                
-                if start > 0 and '.' in row:
+                if '.' in row:
                     try:
+                        alt = 0
                         flow_id = str(len(self.cache_dict) + 1)
                         raw = row.split()
-                        protocol = self.protocol_search(int(raw[4], base=16))
-                        src_port = int(raw[5], base=16)
-                        dst_port = int(raw[6], base=16)
+                        while '.' not in raw[1]: raw.pop(0)
+                        cor = 1
                         self.cache_dict[flow_id] = {}
-                        self.cache_dict[flow_id]['SrcIPaddress'] = raw[1]
-                        self.cache_dict[flow_id]['DstIPaddress'] = raw[3]
                         self.cache_dict[flow_id]['SrcIf'] = raw[0]
-                        self.cache_dict[flow_id]['DstIf'] = raw[2]
+                        self.cache_dict[flow_id]['SrcIPaddress'] = raw[1]
+                        self.cache_dict[flow_id]['Packets'] = raw[-1]
+                        
+                        if len(raw) == 8: 
+                            self.cache_dict[flow_id]['DstIf'] = raw[2]
+                            cor = 0
+                        
+                        self.cache_dict[flow_id]['DstIPaddress'] = raw[3 - cor]
+                        
+                        try: protocol = protocol_con.find_protocol(int(raw[4 - cor], base=16))[0]
+                        except: 
+                            protocol = raw[4 - cor].upper()
+                            alt = 1
                         self.cache_dict[flow_id]['Protocol'] = protocol
+                        
+                        try:
+                            src_port = int(raw[5 - cor], base=16)
+                            dst_port = int(raw[6 - cor], base=16)
+                            if alt ==1: raise Hex2DecError
+                        except:
+                            src_port = int(raw[5 - cor])
+                            dst_port = int(raw[6 - cor])
+                       
                         self.cache_dict[flow_id]['SrcPort'] = ports_con.find_port(src_port, protocol)[0]
                         self.cache_dict[flow_id]['DstPort'] = ports_con.find_port(dst_port, protocol)[0]
-                        self.cache_dict[flow_id]['Packets'] = raw[7]
+                        
                     except: 
-                        if self.verbose > 0: print row
-                    
-                    
-    def protocol_search(self, protocol):
-        try: return self.protocol_dict[protocol]
-        except: return protocol
+                        if self.verbose > 0: print row, raw
+                        del self.cache_dict[flow_id]
         
                     
     def view_dict(self, filter=''): self.view_pretty(self.cache_dict, filter)    #filter based on exact match or like match within key
@@ -106,7 +116,7 @@ class Cache_flow(Tools):
         
     def top_talk(self, key_list=''):
         """
-        sort the top n of flows according to number of packets
+        sort the top number (self.limit) of flows according to number of packets
         """
         out = [1]
         if not key_list: key_list = self.cache_dict.keys()
@@ -124,8 +134,7 @@ class Cache_flow(Tools):
                 if int(self.cache_dict[key]['Packets']) == item: key_out.insert(0, key)
                 
         return key_out
-                
-                    
+                             
                 
     def display(self, key_list=''):    #format records for display
         out = [self.display_heading]
@@ -141,9 +150,3 @@ class Cache_flow(Tools):
             out.append(res_out)
         return out
 
-          
-
-        
-
-        
-        
