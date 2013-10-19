@@ -52,14 +52,17 @@ class Cache_flow(Tools):
                 if '.' in row:
                     try:
                         alt = 0
+                        cor = 1
                         flow_id = str(len(self.cache_dict) + 1)
                         raw = row.split()
                         while '.' not in raw[1]: raw.pop(0)
-                        cor = 1
                         self.cache_dict[flow_id] = {}
                         self.cache_dict[flow_id]['SrcIf'] = raw[0]
                         self.cache_dict[flow_id]['SrcIPaddress'] = raw[1]
-                        self.cache_dict[flow_id]['Packets'] = raw[-1]
+                        
+                        packets = raw[-1]
+                        if 'K' in packets: packets = int(packets.strip('K')) * 1000
+                        self.cache_dict[flow_id]['Packets'] = packets
                         
                         if len(raw) == 8: 
                             self.cache_dict[flow_id]['DstIf'] = raw[2]
@@ -86,7 +89,9 @@ class Cache_flow(Tools):
                         
                     except: 
                         if self.verbose > 0: print row, raw
-                        del self.cache_dict[flow_id]
+                        
+                        try: del self.cache_dict[flow_id]
+                        except: pass
         
                     
     def view_dict(self, filter=''): self.view_pretty(self.cache_dict, filter)    #filter based on exact match or like match within key
@@ -121,7 +126,10 @@ class Cache_flow(Tools):
         out = [1]
         if not key_list: key_list = self.cache_dict.keys()
         for key in key_list:
-            res = int(self.cache_dict[key]['Packets'])
+            
+            try: res = int(self.cache_dict[key]['Packets'])
+            except:  res = 1
+            
             if res > min(out):
                 out.append(res)
                 out.sort()
