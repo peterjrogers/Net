@@ -27,6 +27,8 @@ class X25(Tools):
         self.verbose = verbose
         self.x25_dict = {}
         self.route_list = []
+        self.config = []
+        self.config_list = []
         self.load_file = 'c:/x25'
         self.out_file = 'c:/x25_out'
         self.display_heading = '\n  #           X.25 route                IPaddress       match       router    \n'
@@ -39,6 +41,7 @@ class X25(Tools):
             if row:
                 try:
                     #print row
+                    if 'Serial' in row: continue
                     if '#sh' in row: 
                         hostname = row.split('#')[0]
                     else:
@@ -73,6 +76,17 @@ class X25(Tools):
         res = self.search_dict(search)
         print self.display_heading
         self.view(self.display(res))
+        print 'removing duplicate entries'
+        res = self.search_routes(1)
+        print 'making config'
+        self.make_config(res)
+        self.view(self.config)
+        self.output_config()
+        
+        
+    def search(self, txt):
+        res = self.search_dict(txt)
+        self.view(self.display(res))
     
     
     def search_dict(self, txt):    
@@ -90,21 +104,60 @@ class X25(Tools):
         return out
         
         
-    def search_routes(self):
+    def search_routes(self, active):
         out = []
+        self.combi_list = []
         self.route_list.sort()
+        self.route_list.reverse()
         key_list = self.x25_dict.keys()
         for item in self.route_list:
             for key in key_list:
                 x25_route = self.x25_dict[key]['x25_route']
-                if item == x25_route: out.append(key)
+                match = self.x25_dict[key]['match']
+                ip_address = self.x25_dict[key]['ip_address']
+                x25_ip = x25_route + '_' + ip_address
+                if active == 0:
+                    if item == x25_route: out.append(key)
+                if active == 1:
+                    if item == x25_route and match == 'true' and x25_ip not in self.combi_list: 
+                        out.append(key)
+                        self.combi_list.append(x25_ip)
         return out
        
     
-    def report_routes(self):
-        res = self.search_routes()
+    def report_routes(self, active=0):
+        res = self.search_routes(active)
         out = self.display(res)
-        self.list_to_file(out, self.out_file)            
+        
+        
+    def output_config(self):
+        self.list_to_file(self.config, self.out_file)
+        
+        
+    def make_config(self, key_list):
+        for key in key_list:
+            x25_route = self.x25_dict[key]['x25_route']
+            res = self.line_config(x25_route)
+            if x25_route not in self.config_list:
+                self.config.append(res)
+                self.config_list.append(x25_route)
+        
+        
+    def line_config(self, x25_route):
+        """
+        Create a line of config with input of a single ip_address or a ip_addr list
+        example - x25 route ^(00001111111).* xot 10.10.10.1
+        """
+        route_id = len(self.config) + 1
+        out = []
+        for item in self.combi_list:
+            if x25_route == item.split('_')[0]:
+                out.append(item.split('_')[1])
+ 
+        ip = ''
+        for item in out: ip = ip + ' ' + item
+        return 'x25 route #%s %s xot%s' % (route_id, x25_route, ip)
+        
     
     
     def display(self, key_list=''):    #format records for display
