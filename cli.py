@@ -1,10 +1,10 @@
-import sys, time, macs, device, contact, mac, cache_flow, arps, ports2
+import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2
 import net2, os, mnet2, vty, session3
 from subprocess import Popen, PIPE
 from tools import Tools
 
 mac_con = macs.Macs()
-dev_con = device.Device()
+dev_con = device2.Device()
 contact_con = contact.Contact()
 mac_oui = mac.Mac()
 arp_con = arps.Arp()
@@ -84,8 +84,11 @@ class Cli(Tools):
                     res = ''
 
                 if '%' in res:    #open a new ad-hoc session - format is %hostname,ip_address
-                    raw = res[1:].split(',')
-                    self.crt_session(raw[0], raw[1])
+                    try:
+                        raw = res[1:].split(',')
+                        self.crt_session(raw[0], raw[1])
+                    except: pass
+                    
                     res = ''
                     
                 res = self.level_7(res)    #check macthing commands in the common tools
@@ -302,9 +305,9 @@ class Cli(Tools):
         """
         if q:
             res = dev_con.search_func(q)
-            if 'tuple' in str(type(res)):
-                ip_address = res[1]
-                hostname = res[0]
+            if len(res) == 1:
+                ip_address = dev_con.ip
+                hostname = dev_con.host
                 self.level_1(hostname, ip_address)
                 
             else: return res    #return the list so it can be used for batch work
@@ -356,8 +359,6 @@ class Cli(Tools):
             
         if 'arp' in cmd: 
             if out:
-                res = raw_input('\nType x for extended ARP testing >>> ')
-                if 'x' not in res: return
                 self.list_to_file(out, 'c:/r++')
                 arp_con.arp_go()
                 
