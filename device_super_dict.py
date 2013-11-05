@@ -13,7 +13,7 @@ class Super_dict(Tools):
         dict_db[unique numeric key] = {}
         dict_db[unique numeric key]['host'] = 'router-01'
         dict_db[unique numeric key]['ip'] = '1.1.1.1'
-        dict_db[unique numeric key]['model'] = 'cisco 2811'
+        dict_db[unique numeric key]['model'] = key value from item_db
         
         dictionary search index
         search_db['router-01'] = {}
@@ -24,6 +24,7 @@ class Super_dict(Tools):
         search_db['router-01']['key'] = unique numeric key
         
         host entries appended to the self index list to provide a way to check for unique entries when adding data
+        data entries appended to the register if unique, if not the key number is added to the entry i.e. Cisco    #123
         
         Written by Peter Rogers
         (C) Intelligent Planet 2013
@@ -31,8 +32,8 @@ class Super_dict(Tools):
        
         self.verbose = 1
         self.space_size = 18
+        self.count = 0
         self.index = []
-        self.register = []
         self.dict_db = {}
         self.search_db = {}
         
@@ -45,8 +46,37 @@ class Super_dict(Tools):
                 else:
                     res = row.strip('\n').strip('"').rstrip(' ').lower().split(',')
                     self.add_record(head, res)
+                    
+                    
+    def load_item(self, cfile):
+        file = open(cfile, 'rU')
+        for row in file:
+            if row:
+                if '#' not in row[0]:
+                    res = row.strip('\n').strip('"').rstrip(' ').lower().split(',')
+                    self.add_item(res)
                         
                      
+    def add_item(self, row):
+        try:
+            pos = 0
+            for item in row:
+                if row[pos]: 
+                    self.search_db[str(row[pos])] = {}
+                    self.search_db[str(row[pos])]['pos'] = self.count
+                    self.search_db[str(row[pos])]['key'] = []
+                    self.count += 1
+                pos += 1
+                        
+        except: print 'failed', row
+        
+        
+    def invert_db(self, db_in):
+        out = {}
+        for item in db_in: out[db_in[item]['pos']] = item
+        return out
+        
+    
     def add_record(self, head, row):
         try:
             if row[0] in self.index:
@@ -61,16 +91,13 @@ class Super_dict(Tools):
         for item in row:
             if row[pos]:
                 try:
-                    value = row[pos]
+                    if pos < 2: value = row[pos]
+                    else: value = self.search_db[row[pos]]['pos']
+                    
                     self.dict_db[key][head[pos]] = value
-                                    
-                    if pos > 0:
-                        if value in self.register: value = '%s    #%s' % (value, key)
-                        else: self.register.append(value)
                         
-                    self.search_db[value] = {}
-                    self.search_db[value]['tag'] = head[pos]
-                    self.search_db[value]['key'] = key
+                    self.search_db[row[pos]]['tag'] = head[pos]
+                    self.search_db[row[pos]]['key'].append(key)
                     
 
                 except: print 'failed', value, row[0], pos, len(row), len(head)
