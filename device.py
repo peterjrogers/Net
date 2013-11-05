@@ -1,4 +1,4 @@
-from device_super_dict import Super_dict
+from super_dict3 import Super_dict
 import net2, session3, hosts
 
 hosts_con = hosts.Hosts()
@@ -22,13 +22,17 @@ class Device(Super_dict):
         self.dict_file = 'c:/device_db'
         
         self.device_load()
-        self.load_hosts()
+        #self.load_hosts()
        
        
     def device_load(self):
-        self.load_csv(self.load_file)
-        self.load_csv(self.bt_load_file)
-        self.load_csv(self.bt_update_file)
+        load_list = [self.load_file, self.bt_load_file, self.bt_update_file]
+        for item in load_list: self.load_item(item)
+        self.item_db = self.invert_db(self.search_db)
+        for item in load_list: self.load_csv(item)
+        #self.load_csv(self.load_file)
+        #self.load_csv(self.bt_load_file)
+        #self.load_csv(self.bt_update_file)
         
         
     def load_hosts(self):
