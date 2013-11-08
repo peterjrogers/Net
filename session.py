@@ -1,7 +1,8 @@
+import net2
 from subprocess import Popen
 
 class SecureCRT():
-    def __init__(self, connection_type, hostname, ip_address):   
+    def __init__(self, hostname, ip_address, path=''):   
         """
         This class is designed to create and use session files for Secure CRT 
         by cloning and modifying a pre made template session file.
@@ -48,18 +49,24 @@ class SecureCRT():
         """
         
         #passed in class values
-        self.connection_type = connection_type
         self.hostname = hostname
         self.ip_address = ip_address
+        self.path = path
+        
+        #test connection_type
+        if self.ip_address != '0.0.0.0': self.connection_type = self.test()
+        else: self.connection_type = ''
         
         #file name and path values
         self.file_extension = '.ini'
-        self.path = 'C:/Program Files/SecureCRT/Sessions/'
+        if not self.path: 
+            self.path = 'C:/Program Files/SecureCRT/Sessions/'
+            self.default = 1
         self.output_path = self.path + self.connection_type + '/'
         self.output_file_name = self.output_path + self.hostname + self.file_extension
        
     
-    def make_session(self):
+    def make(self):
         """
         A function designed to create the session text for a session.ini file
         and save the text into a new file in the following location:
@@ -80,7 +87,7 @@ class SecureCRT():
         outfile.close()
         
         
-    def launch_session(self):
+    def launch(self):
         """
         A function designed to open the session file that 
         was previously created with self.make_session()
@@ -99,8 +106,70 @@ class SecureCRT():
         """
         
         #build the command string and execute it
-        part_a = 'securecrt /S "\\\%s' % (self.connection_type)
+        try: 
+            if self.default: part_a = 'securecrt /S "\\\%s' % (self.connection_type)
+        except: 
+            path = self.path.split('/sessions/')[0]
+            part_a = 'securecrt /f "%s" /S "%s' % (path, self.connection_type)
+        
         part_b = '%s"' % (self.hostname)
         cmd = "Popen('%s\\\%s')" % (part_a, part_b)
-        exec(cmd)   
-
+        exec(cmd)
+        
+        
+    def test(self, verbose=1):
+        """
+        A function design to determine the connection_type (telnet, ssh1 or ssh2) and the
+        authentication type (bt or produban)
+        
+        Method of testing is:
+        1) Open port 23 and 22 to the device and read the banner
+        2) Look for BT or PROD in the text and return the self.connection_type
+        3) If banner reading can not determine the type, use pre configured string
+            matches on parts of the self.hostname text and return the self.connection_type
+        4) if the type can not be determined return 'fail'
+        """
+        
+        bt_list = ['san-b', 'san-h', 'san-t', 'ab-h', 'san-d']
+        prod_list = ['prod', 'grupo']
+        ssh2_list = ['2', '1.99']
+        
+        con = net2.Net()
+        
+        #Telnet test
+        self.port = 23
+        res = con.test_port(self.port, self.ip_address)
+        if 'fail' not in res: 
+            res = res.lower()
+            if verbose >0: print res
+        
+            if 'bt' in res: return 'bt'
+            
+            for item in prod_list:
+                if item in self.hostname.lower(): return 'telnet'
+                
+            if len(res) > 0: return 'telnet'
+        
+        #fallback on hostname recognition        
+        for item in bt_list:
+            if item in self.hostname.lower(): return 'bt'    
+            
+            
+        #SSH test    
+        self.port = 22
+        res = con.test_port(self.port, self.ip_address)
+        if 'fail' not in res: 
+            res = res.lower()
+            if verbose >0: print res
+            
+            for item in ssh2_list:
+                if item in res: return 'ssh2'
+        
+            if len(res) > 0: return 'ssh'
+            
+        return 'telnet'
+        
+        
+               
+    
+    
