@@ -18,13 +18,10 @@ class Super_dict(Tools):
         dictionary search index
         search_db['router-01'] = {}
         search_db['router-01']['tag'] = 'host'
-        search_db['router-01']['key'] = unique numeric key
-        search_db['1.1.1.1'] = {}
-        search_db['router-01']['tag'] = 'ip'
-        search_db['router-01']['key'] = unique numeric key
-        
+        search_db['router-01']['pos'] = unique numeric key for search_db
+        search_db['router-01']['key'] = [unique numeric key(s) for dict_db]
+
         host entries appended to the self index list to provide a way to check for unique entries when adding data
-        data entries appended to the register if unique, if not the key number is added to the entry i.e. Cisco    #123
         
         Written by Peter Rogers
         (C) Intelligent Planet 2013
@@ -121,8 +118,9 @@ class Super_dict(Tools):
         except: clist = [clist]
         
         for entry in clist:
-            res = self.hash_index(entry)[0]
-            out.append(res)
+            try: res = self.hash_index(entry)[0]
+            except: pass
+            for item in res: out.append(item)
         return out
        
        
@@ -142,7 +140,8 @@ class Super_dict(Tools):
         res = self.dict_db[txt]
         key_list = res.keys()
         for key in key_list:
-            res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), res[key].upper(), self.space(res[key], self.space_size))
+            try: res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), res[key].upper(), self.space(res[key], self.space_size))
+            except: res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), self.item_db[res[key]].upper(), self.space(self.item_db[res[key]], self.space_size))
             self.filter_view(key, filter_list, res_out)
         return self.out
         
