@@ -77,8 +77,8 @@ class Device(Super_dict):
     def display_host_search(self, txt):
         try:
             res = self.hash_index(txt)
-            self.host = self.dict_db[res[0]]['host'].upper()
-            self.ip = self.dict_db[res[0]]['ip']
+            self.host = self.dict_db[res[0][0]]['host'].upper()
+            self.ip = self.dict_db[res[0][0]]['ip']
             print '%s%s %s%s %s' % (self.host, self.space(self.host, 40), self.ip, self.space(self.ip, 18), txt.upper())
         except: pass
                    
