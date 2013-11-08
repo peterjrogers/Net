@@ -147,9 +147,8 @@ class Cli(Tools):
             if '@x25' in q: self.cmd_list = ['sh x25 rou','sh x25 vc | inc Interface|Started|Connects'] ; q = '@cmd'
             
             if '@int' in q: self.cmd_list = ['sh int desc','sh ip int brief','sh int count err','sh ip arp','sh ip bgp sum','sh ip route sum','sh ver | inc uptime|System|reason|cessor','sh standby | inc Group|State|change|Priority'] ; q = '@cmd'
-            
-            
-            if 'ping' in q: q = 'ping %s' % ip_address ; c +=1
+
+            if 'ping' in q and len(q) == 4: q = 'ping %s' % ip_address ; c +=1
 
             if 'trace' in q: q = 'trace %s' % ip_address ; c +=1
             
