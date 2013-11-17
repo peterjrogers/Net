@@ -1,5 +1,5 @@
 import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2
-import net2, os, mnet2, vty, session3
+import net2, os, mnet2, vty, session3, batch
 from subprocess import Popen, PIPE
 from tools import Tools
 
@@ -13,6 +13,7 @@ ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
 
+
 class Cli(Tools):
     def __init__(self):
         Tools.__init__(self)
@@ -23,7 +24,6 @@ class Cli(Tools):
         
         """
         
-        self.start = time.time()
         self.verbose = 0
         
         ### cli vars ###
@@ -33,13 +33,11 @@ class Cli(Tools):
         try: self.path = 'H:/crt/sessions/'
         except: self.path = 'C:/Program Files/SecureCRT/Sessions/'
         
-       
-        ### load the session data
-        #Hosts.__init__(self)    #load hosts file - TODO - need to include this in devices
-        
-        
-        #self.length = len(self.device_list) - TODO needs to come from devices
-        #self.host_length = len(self.host_list)
+        self.session_fail_delay = 2
+        self.total_records = len(dev_con.search_db)
+        self.total_hosts = len(dev_con.index)
+        self.batch_con = batch.Batch(dev_con, self)
+        self.host_list = []
         self.level_0()
         
 
@@ -56,7 +54,7 @@ class Cli(Tools):
         %name,ip     Open ad-hoc session e.g. %Router1,10.1.1.1\n
 
         """
-        #print "%s records loaded for %s devices in %.4f seconds" % (self.length, self.host_length, time.time() - self.start)
+        print "%s records loaded for %s devices" % (self.total_records, self.total_hosts)
         
         out = []
         view_list = []
@@ -76,7 +74,9 @@ class Cli(Tools):
                     res = ''
                
                 if res == '?':    #print each item in the view_list
-                    for item in view_list: print item.upper()
+                    try: 
+                        for item in view_list: print item.upper()
+                    except: pass
                     res = ''
 
                 if '@' in res:    #open a previously made session file by file name
@@ -88,7 +88,11 @@ class Cli(Tools):
                         raw = res[1:].split(',')
                         self.crt_session(raw[0], raw[1])
                     except: pass
+                    res = ''
                     
+                if 'batch ' in res:    #perform batch operations - use batch help for extended help
+                    batch_out = self.batch_con.com(res, self.host_list)
+                    if batch_out: print batch_out
                     res = ''
                     
                 res = self.level_7(res)    #check macthing commands in the common tools
@@ -244,6 +248,10 @@ class Cli(Tools):
             self.view(net_con.scan(res[5:]))
             res = ''
             
+        if 'cmd=' in res: 
+            self.cmd_list = res[4:].split(',')
+            print self.cmd_list ; res = ''
+            
         return res    #returns the original string if no match
                
                
@@ -304,6 +312,7 @@ class Cli(Tools):
         """
         if q:
             res = dev_con.search_func(q)
+            self.host_list = dev_con.host_list
             if len(res) == 1:
                 ip_address = dev_con.ip
                 hostname = dev_con.host
@@ -339,44 +348,57 @@ class Cli(Tools):
     
               
     def py_session(self, ip, host, port, cmd):
-        print cmd
+        out = self.vty_session(ip, host, port, cmd)
+        return self.post_session(out, cmd)
+    
+    
+    def vty_session(self, ip, host, port, cmd):
+        print 'command(s) to run', cmd
         con = vty.Vty(ip, host, port)
         con.verbose = 1
+        self.session_try = 1
         
-        if port == 23:
-            res = con.telnet_go(cmd)
-            if res: return
-            out = con.telnet_out
-            con.view(out)
+        while self.session_try < 4:
+        
+            if port == 23:
+                res = con.telnet_go(cmd)
+                if res: self.session_fail()
+                else: return con.telnet_out
+
+            if port == 22:
+                con.auth_produban()
+                res = con.ssh_go(cmd)
+                if res: self.session_fail()
+                else: return con.ssh_out
+                
+        return ''
+
             
-        if port == 22:
-            con.auth_produban()
-            res = con.ssh_go(cmd)
-            if res: return
-            out = con.ssh_out
-            con.view(out)
+    def session_fail(self):
+        print 'attempt %d failed' % self.session_try
+        self.session_try += 1
+        time.sleep(self.session_fail_delay)
             
-        if 'arp' in cmd: 
-            if out:
+        
+    def post_session(self, out, cmd):
+        self.view(out)
+        
+        if out:
+            if 'arp' in cmd: 
                 self.list_to_file(out, 'c:/r++')
                 arp_con.arp_go()
                 
-        if 'mac' in cmd: 
-            if out:
+            if 'mac' in cmd: 
                 self.list_to_file(out, 'c:/mac_load')
                 mac_con.load()
                 mac_con.save()
                 
-        if 'cache' in cmd:
-            if out:
+            if 'cache' in cmd:
                 self.list_to_file(out, cache_con.load_file)
                 cache_con.test()
-            
-        if out:
-            self.list_to_file(out, 'h:\log', 'a')
-            return out
                 
-              
+        return out
+                  
        
 def go():
     x = Cli()
