@@ -1,4 +1,4 @@
-from super_dict3 import Super_dict
+from super_dict2 import Super_dict
 import net2, session3, hosts
 
 hosts_con = hosts.Hosts()
@@ -11,6 +11,9 @@ class Device(Super_dict):
         Device db
        
         self.dict_db format is [hostname][ip  |  user specified fields]
+        
+        self.index is a list containing all hosts and is used to 
+        resolve searches to a single host entry
         """
        
         self.path = 'H:/crt/sessions/'
@@ -22,17 +25,13 @@ class Device(Super_dict):
         self.dict_file = 'c:/device_db'
         
         self.device_load()
-        #self.load_hosts()
+        self.load_hosts()
        
        
     def device_load(self):
-        load_list = [self.load_file, self.bt_load_file, self.bt_update_file]
-        for item in load_list: self.load_item(item)
-        self.item_db = self.invert_db(self.search_db)
-        for item in load_list: self.load_csv(item)
-        #self.load_csv(self.load_file)
-        #self.load_csv(self.bt_load_file)
-        #self.load_csv(self.bt_update_file)
+        self.load_csv(self.load_file)
+        self.load_csv(self.bt_load_file)
+        self.load_csv(self.bt_update_file)
         
         
     def load_hosts(self):
@@ -66,6 +65,7 @@ class Device(Super_dict):
         else:
             res = self.search_hash(q)
         
+        self.host_list = []
         for item in res: self.display_host_search(item)
         print '\n', len(res), 'Result(s)\n'
         return res
@@ -77,9 +77,17 @@ class Device(Super_dict):
     def display_host_search(self, txt):
         try:
             res = self.hash_index(txt)
-            self.host = self.dict_db[res[0][0]]['host'].upper()
-            self.ip = self.dict_db[res[0][0]]['ip']
+            self.host = self.dict_db[res[0]]['host'].upper()
+            
+            try: 
+                if self.host not in self.host_list:
+                    self.host_list.append(self.host.lower())
+            except: pass
+            
+            self.ip = self.dict_db[res[0]]['ip']
             print '%s%s %s%s %s' % (self.host, self.space(self.host, 40), self.ip, self.space(self.ip, 18), txt.upper())
         except: pass
+        
+        
                    
                          
