@@ -13,15 +13,18 @@ class Super_dict(Tools):
         dict_db[unique numeric key] = {}
         dict_db[unique numeric key]['host'] = 'router-01'
         dict_db[unique numeric key]['ip'] = '1.1.1.1'
-        dict_db[unique numeric key]['model'] = key value from item_db
+        dict_db[unique numeric key]['model'] = 'cisco 2811'
         
         dictionary search index
         search_db['router-01'] = {}
         search_db['router-01']['tag'] = 'host'
-        search_db['router-01']['pos'] = unique numeric key for search_db
-        search_db['router-01']['key'] = [unique numeric key(s) for dict_db]
-
+        search_db['router-01']['key'] = unique numeric key
+        search_db['1.1.1.1'] = {}
+        search_db['router-01']['tag'] = 'ip'
+        search_db['router-01']['key'] = unique numeric key
+        
         host entries appended to the self index list to provide a way to check for unique entries when adding data
+        data entries appended to the register if unique, if not the key number is added to the entry i.e. Cisco    #123
         
         Written by Peter Rogers
         (C) Intelligent Planet 2013
@@ -29,8 +32,8 @@ class Super_dict(Tools):
        
         self.verbose = 1
         self.space_size = 18
-        self.count = 0
         self.index = []
+        self.register = {}
         self.dict_db = {}
         self.search_db = {}
         
@@ -43,37 +46,8 @@ class Super_dict(Tools):
                 else:
                     res = row.strip('\n').strip('"').rstrip(' ').lower().split(',')
                     self.add_record(head, res)
-                    
-                    
-    def load_item(self, cfile):
-        file = open(cfile, 'rU')
-        for row in file:
-            if row:
-                if '#' not in row[0]:
-                    res = row.strip('\n').strip('"').rstrip(' ').lower().split(',')
-                    self.add_item(res)
                         
                      
-    def add_item(self, row):
-        try:
-            pos = 0
-            for item in row:
-                if row[pos]: 
-                    self.search_db[str(row[pos])] = {}
-                    self.search_db[str(row[pos])]['pos'] = self.count
-                    self.search_db[str(row[pos])]['key'] = []
-                    self.count += 1
-                pos += 1
-                        
-        except: print 'failed', row
-        
-        
-    def invert_db(self, db_in):
-        out = {}
-        for item in db_in: out[db_in[item]['pos']] = item
-        return out
-        
-    
     def add_record(self, head, row):
         try:
             if row[0] in self.index:
@@ -88,15 +62,23 @@ class Super_dict(Tools):
         for item in row:
             if row[pos]:
                 try:
-                    if pos < 2: value = row[pos]
-                    else: value = self.search_db[row[pos]]['pos']
-                    
+                    value = row[pos]
                     self.dict_db[key][head[pos]] = value
+                                    
+                    if pos > 0:
+                        try: 
+                           ignore = self.register[value]
+                           value = '%s    #%s' % (value, key)
                         
-                    self.search_db[row[pos]]['tag'] = head[pos]
-                    self.search_db[row[pos]]['key'].append(key)
+                        except: self.register[value] = ''
+                            
+                        #if value in self.register: value = '%s    #%s' % (value, key)
+                        #else: self.register.append(value)
+                        
+                    self.search_db[value] = {}
+                    self.search_db[value]['tag'] = head[pos]
+                    self.search_db[value]['key'] = key
                     
-
                 except: print 'failed', value, row[0], pos, len(row), len(head)
             pos += 1
                                          
@@ -118,9 +100,8 @@ class Super_dict(Tools):
         except: clist = [clist]
         
         for entry in clist:
-            try: res = self.hash_index(entry)[0]
-            except: pass
-            for item in res: out.append(item)
+            res = self.hash_index(entry)[0]
+            out.append(res)
         return out
        
        
@@ -140,8 +121,7 @@ class Super_dict(Tools):
         res = self.dict_db[txt]
         key_list = res.keys()
         for key in key_list:
-            try: res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), res[key].upper(), self.space(res[key], self.space_size))
-            except: res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), self.item_db[res[key]].upper(), self.space(self.item_db[res[key]], self.space_size))
+            res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), res[key].upper(), self.space(res[key], self.space_size))
             self.filter_view(key, filter_list, res_out)
         return self.out
         
