@@ -36,7 +36,7 @@ class Batch(Tools, Mnet):
         
         for host in view_list:
             if host not in self.batch_host_list: 
-                print host.upper()
+                print 'added %s' % host
                 self.batch_host_list.append(host)
 
                 
@@ -49,20 +49,20 @@ class Batch(Tools, Mnet):
             
     def pops(self, host):
         try:
-            pos = self.batch_host_list.index(host.lower())
+            pos = self.batch_host_list.index(host)
             self.batch_host_list.pop(pos)
-            print 'removed', host.upper()
-        except: print 'error %s was not removed' % host.upper()
+            print 'removed %s' % host
+        except: print 'error removing %s' % host
         
         
     def make_ip_list(self):
         self.ip_list = []
         for host in self.batch_host_list:
             try: 
-                key = self.dev_con.search_db[host.lower()]['key']
+                key = self.dev_con.search_db[host]['key']
                 ip = self.dev_con.dict_db[key]['ip']
                 if ip not in self.ip_list: self.ip_list.append(ip)
-            except type: print 'error %s ip address not found' % host
+            except: print 'error %s ip address not found' % host
         
         
     def batch_ping(self): 
@@ -73,6 +73,15 @@ class Batch(Tools, Mnet):
     def batch_rlook(self): 
         self.make_ip_list()
         return self.mt_dns_rlook(self.ip_list)
+        
+        
+    def batch_port(self, q):
+        self.make_ip_list()
+        port = q.split()[-1]
+        for ip in self.ip_list: 
+            cmd = '%s:%s' % (ip, port)
+            print 'trying port %s on %s' % (port, ip)
+            self.cli_con.ping_tool(cmd)
     
     
     def batch_vty(self):
@@ -115,6 +124,7 @@ class Batch(Tools, Mnet):
         \n view host    view host list
         \n ping         perform a multithreaded ping on ip_list
         \n rlook        perfrom a multithreaded reverse dns lookup on ip_list
+        \n port nn        perform a port check - i.e. batch port 23
         \n vty / tty    connect to vty on devices and run a command(s) and store screen output
         
         """
@@ -132,9 +142,11 @@ class Batch(Tools, Mnet):
                 self.view(self.ip_list)
             if 'host' in q: self.view(self.batch_host_list)
             
-        if 'ping' in q: return self.batch_ping()
+        if 'ping' in q: self.view(self.batch_ping())
         
         if 'rlook' in q: return self.batch_rlook()
+        
+        if 'port' in q: return self.batch_port(q)
         
         if 'vty' in q or 'tty' in q: return self.batch_vty()
         
