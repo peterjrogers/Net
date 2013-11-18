@@ -67,6 +67,7 @@ class Device(Super_dict):
         
         self.host_list = []
         for item in res: self.display_host_search(item)
+        if len(self.host_list) == 1: res = self.host_list
         print '\n', len(res), 'Result(s)\n'
         return res
         
@@ -77,15 +78,15 @@ class Device(Super_dict):
     def display_host_search(self, txt):
         try:
             res = self.hash_index(txt)
-            self.host = self.dict_db[res[0]]['host'].upper()
+            self.host = self.dict_db[res[0]]['host']
             
             try: 
                 if self.host not in self.host_list:
-                    self.host_list.append(self.host.lower())
+                    self.host_list.append(self.host)
             except: pass
             
             self.ip = self.dict_db[res[0]]['ip']
-            print '%s%s %s%s %s' % (self.host, self.space(self.host, 40), self.ip, self.space(self.ip, 18), txt.upper())
+            print '%s%s %s%s %s' % (self.host.upper(), self.space(self.host, 40), self.ip, self.space(self.ip, 18), txt.upper())
         except: pass
         
         
