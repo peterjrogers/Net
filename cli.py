@@ -7,7 +7,6 @@ mac_con = macs.Macs()
 dev_con = device2.Device()
 contact_con = contact.Contact()
 mac_oui = mac.Mac()
-arp_con = arps.Arp()
 cache_con = cache_flow.Cache_flow()
 ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
@@ -33,11 +32,14 @@ class Cli(Tools):
         try: self.path = 'H:/crt/sessions/'
         except: self.path = 'C:/Program Files/SecureCRT/Sessions/'
         
+        self.log_file = self.path + 'log'
+        self.sticky = 1    #can be set to 0 to disable level1 cli
         self.session_fail_delay = 2
         self.total_records = len(dev_con.search_db)
         self.total_hosts = len(dev_con.index)
         self.batch_con = batch.Batch(dev_con, self)
         self.host_list = []
+        self.arp_start()
         self.level_0()
         
 
@@ -52,6 +54,8 @@ class Cli(Tools):
         ?            Display multiple matching host records\n
         @            Open a pre made session e.g. @ba\n
         %name,ip     Open ad-hoc session e.g. %Router1,10.1.1.1\n
+        sticky 0     Disables level 1 CLI for cut & paste searches    sticky re-enables
+        batch [help]    perform batch operations
 
         """
         print "%s records loaded for %s devices" % (self.total_records, self.total_hosts)
@@ -88,6 +92,11 @@ class Cli(Tools):
                         raw = res[1:].split(',')
                         self.crt_session(raw[0], raw[1])
                     except: pass
+                    res = ''
+                    
+                if 'sticky ' in res:    #disable level1 interface for copy / paste searches
+                    if '0' in res: self.sticky = 0
+                    else: self.sticky = 1
                     res = ''
                     
                 if 'batch ' in res:    #perform batch operations - use batch help for extended help
@@ -281,19 +290,23 @@ class Cli(Tools):
         """
         ses_con = session3.SecureCRT(hostname, ip, self.path)
         return ses_con.test(), ses_con.port
-        
+    
+
+    def arp_start(self):
+        self.arp_con = arps.Arp()
         
     def arp_search(self, res):
         """
         Search and display historical arp records and goto level_1 if a single matching entry is found
         """
         if res: 
-            view_list = arp_con.search_mac(res)
+            view_list = self.arp_con.search_mac(res)
             if len(view_list) == 1: 
                 res = view_list[0].split('_')
                 ip_address = res[0]
                 hostname = res[1]
-                print '\n Matched in ARP db  ', ip_address, '    ', hostname
+                print '\n Matched in ARP db  %s    %s\n' % (ip_address, hostname)
+                self.arp_con.view_records(ip_address)
                 self.level_1(hostname, ip_address)
             else:
                 for item in view_list: print 'ARP db    ',item
@@ -313,7 +326,7 @@ class Cli(Tools):
         if q:
             res = dev_con.search_func(q)
             self.host_list = dev_con.host_list
-            if len(res) == 1:
+            if len(res) == 1 and self.sticky ==1:
                 ip_address = dev_con.ip
                 hostname = dev_con.host
                 self.level_1(hostname, ip_address)
@@ -337,6 +350,7 @@ class Cli(Tools):
             if port:
                 if ':80' in res: print con.test_http(80, ip_address)
                 else: print con.test_port(int(port), ip_address)
+                time.sleep(1)
                 
             else: con.ping(ip_address)
             
@@ -385,17 +399,24 @@ class Cli(Tools):
         
         if out:
             if 'arp' in cmd: 
-                self.list_to_file(out, 'c:/r++')
-                arp_con.arp_go()
+                try:
+                    self.list_to_file(out, self.arp_con.cfile)
+                    self.arp_start()
+                    self.arp_con.arp_go()
+                    self.arp_con.save_report()
+                except: pass
                 
             if 'mac' in cmd: 
-                self.list_to_file(out, 'c:/mac_load')
+                self.list_to_file(out, mac_con.load_file)
                 mac_con.load()
                 mac_con.save()
                 
             if 'cache' in cmd:
                 self.list_to_file(out, cache_con.load_file)
                 cache_con.test()
+                
+            if 'sh ip int brief' in cmd:
+                self.list_to_file(out, self.log_file, 'a')
                 
         return out
                   
