@@ -71,9 +71,6 @@ class Super_dict(Tools):
                            value = '%s    #%s' % (value, key)
                         
                         except: self.register[value] = ''
-                            
-                        #if value in self.register: value = '%s    #%s' % (value, key)
-                        #else: self.register.append(value)
                         
                     self.search_db[value] = {}
                     self.search_db[value]['tag'] = head[pos]
@@ -113,28 +110,15 @@ class Super_dict(Tools):
         res = self.search_list(txt.lower())
         for item in res:
             print '\n', str(item).upper()
-            self.view(self.display_view(item, filter_list))
+            self.view(self.display_view(item))
        
        
-    def display_view(self, txt, filter_list=''):    #format record for display
-        self.out = []
+    def display_view(self, txt):    #format record for display
+        out = []
         res = self.dict_db[txt]
         key_list = res.keys()
         for key in key_list:
             res_out = '%s%s %s%s' % (key.capitalize(), self.space(key, self.space_size), res[key].upper(), self.space(res[key], self.space_size))
-            self.filter_view(key, filter_list, res_out)
-        return self.out
+            out.append(res_out)
+        return out
         
-        
-    def filter_view(self, key, filter_list, res_out):    #filter can be reversed by removing not
-        if key not in filter_list: self.out.append(res_out)
-        
-       
-    def view_db(self, filter=''): self.view_pretty(self.dict_db, filter)
-    
-    
-    def view_hash(self, filter=''): self.view_pretty(self.search_db, filter)
-    
-       
-   
-    
