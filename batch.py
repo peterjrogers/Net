@@ -105,7 +105,7 @@ class Batch(Tools, Mnet):
                 out = self.cli_con.vty_session(ip, host, port, cmd)
                 
                 if out: 
-                    self.view(out)
+                    self.cli_con.post_session(out, cmd[0], 1)
                     self.list_to_file(out, self.out_file, 'a')
                 
                 time.sleep(self.time_wait)
@@ -152,7 +152,3 @@ class Batch(Tools, Mnet):
         
         
             
-
-                
-                
-                
