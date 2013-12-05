@@ -151,6 +151,8 @@ class Cli(Tools):
             
             if '@arp' in q: q = '%sh ip arp'
             
+            if '@bip' in q: self.cmd_list = ['sh ip bgp sum | beg Neigh', 'sh controller vdsl 0/0/0 | inc dB|Speed|Reed|Err', 'sh controller vdsl 0/1/0 | inc dB|Speed|Reed|Err'] ; q = '@cmd'
+            
             if '@mac' in q: q = '%sh mac-add dyn'
             
             if '@cache' in q: q = '%sh ip cache flow'
@@ -182,10 +184,6 @@ class Cli(Tools):
                 print 'ip', ip_address ; c +=1
             
             if 'help' in q: print self.level_1.__doc__ ; c +=1
-                
-            if 'cmd=' in q: 
-                self.cmd_list = q[4:].split(',')
-                print self.cmd_list ; c +=1
                 
             if '@cmd' in q:
                 res = self.test_session(hostname, ip_address)
@@ -225,6 +223,10 @@ class Cli(Tools):
         scan [ip]    Port scanner
         """
         
+        if 'cmd=' in res: 
+            self.cmd_list = res[4:].split(',')
+            print self.cmd_list ; res = ''
+        
         if 'arp ' in res:    #perform a search of the historic arp db
             self.arp_search(res[4:])
             res = ''
@@ -256,10 +258,6 @@ class Cli(Tools):
         if 'scan ' in res:    #perfrom a port scan
             self.view(net_con.scan(res[5:]))
             res = ''
-            
-        if 'cmd=' in res: 
-            self.cmd_list = res[4:].split(',')
-            print self.cmd_list ; res = ''
             
         return res    #returns the original string if no match
                
@@ -369,7 +367,7 @@ class Cli(Tools):
     def vty_session(self, ip, host, port, cmd):
         print 'command(s) to run', cmd
         con = vty.Vty(ip, host, port)
-        con.verbose = 1
+        con.verbose = 0
         self.session_try = 1
         
         while self.session_try < 4:
@@ -394,7 +392,7 @@ class Cli(Tools):
         time.sleep(self.session_fail_delay)
             
         
-    def post_session(self, out, cmd):
+    def post_session(self, out, cmd, silent=0):
         self.view(out)
         
         if out:
@@ -403,7 +401,7 @@ class Cli(Tools):
                     self.list_to_file(out, self.arp_con.cfile)
                     self.arp_start()
                     self.arp_con.arp_go()
-                    self.arp_con.save_report()
+                    if silent < 1: self.arp_con.save_report()
                 except: pass
                 
             if 'mac' in cmd: 
@@ -417,6 +415,8 @@ class Cli(Tools):
                 
             if 'sh ip int brief' in cmd:
                 self.list_to_file(out, self.log_file, 'a')
+                
+            else: self.list_to_file(out, self.log_file, 'a')
                 
         return out
                   
