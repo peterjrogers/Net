@@ -161,6 +161,8 @@ class Cli(Tools):
             
             if '@x25' in q: self.cmd_list = ['sh x25 rou','sh x25 vc | inc Interface|Started|Connects'] ; q = '@cmd'
             
+            if '@cpu' in q: self.cmd_list = ['sh proc cpu sort | exc 0.00', 'sh proc cpu his', 'sh plat health', 'sh plat cpu packet stat all'] ; q = '@cmd'
+            
             if '@int' in q: self.cmd_list = ['sh int desc','sh ip int brief','sh int count err','sh ip arp','sh ip bgp sum','sh ip route sum','sh ver | inc uptime|System|reason|cessor','sh standby | inc Group|State|change|Priority'] ; q = '@cmd'
 
             if 'ping' in q and len(q) == 4: q = 'ping %s' % ip_address ; c +=1
@@ -221,6 +223,8 @@ class Cli(Tools):
         ping x.x.x.x [:port]  Ping IP / Port\n
         trace [ip]    Traceroute
         scan [ip]    Port scanner
+        rlook [ip]    Reverse name lookup
+        look[host name]    name lookup
         """
         
         if 'cmd=' in res: 
@@ -258,6 +262,16 @@ class Cli(Tools):
         if 'scan ' in res:    #perfrom a port scan
             self.view(net_con.scan(res[5:]))
             res = ''
+            
+        if 'look ' in res:    #perfrom a reverse lookup
+            con = net2.Net()
+            try:
+                if 'rlook' in res: print con.dns_rlook(res[6:])
+                else: 
+                    out = con.dns_look(res[5:])
+                    print out, con.dns_rlook(out)
+            except: pass
+            res =''
             
         return res    #returns the original string if no match
                
@@ -360,14 +374,16 @@ class Cli(Tools):
     
               
     def py_session(self, ip, host, port, cmd):
-        out = self.vty_session(ip, host, port, cmd)
-        return self.post_session(out, cmd)
+        try:
+            out = self.vty_session(ip, host, port, cmd)
+            return self.post_session(out, cmd)
+        except: print 'failed'
     
     
     def vty_session(self, ip, host, port, cmd):
         print 'command(s) to run', cmd
         con = vty.Vty(ip, host, port)
-        con.verbose = 0
+        con.verbose = 1
         self.session_try = 1
         
         while self.session_try < 4:
@@ -416,7 +432,7 @@ class Cli(Tools):
             if 'sh ip int brief' in cmd:
                 self.list_to_file(out, self.log_file, 'a')
                 
-            else: self.list_to_file(out, self.log_file, 'a')
+            self.list_to_file(out, self.log_file, 'a')
                 
         return out
                   
