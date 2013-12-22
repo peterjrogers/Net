@@ -1,5 +1,5 @@
 import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2
-import net2, os, mnet2, vty, session3, batch
+import net2, os, mnet2, vty, session3, batch, ipcalc
 from subprocess import Popen, PIPE
 from tools import Tools
 
@@ -11,6 +11,8 @@ cache_con = cache_flow.Cache_flow()
 ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
+
+decrypt=lambda x:''.join([chr(int(x[i:i+2],16)^ord('dsfd;kfoA,.iyewrkldJKDHSUBsgvca69834ncxv9873254k;fg87'[(int(x[:2])+i/2-1)%53]))for i in range(2,len(x),2)])    #http://packetstormsecurity.com/files/author/7338/
 
 
 class Cli(Tools):
@@ -273,6 +275,16 @@ class Cli(Tools):
             except: pass
             res =''
             
+        if 'decrypt ' in res:    #cisco type 7 password decode
+            print decrypt(res[8:])
+            res = ''
+            
+        if 'cidr ' in res:    #cidr calculator
+            net = ipcalc.Network(res[5:])
+            print ' Network:     %s\n First host:  %s\n Last host:   %s\n Broadcast:   %s\n Netmask:     %s\n Num Hosts:   %s\n' % (net.network(), net.host_first(), net.host_last(), net.broadcast(), net.netmask(), str(net.size()-2))
+            
+            res = ''            
+            
         return res    #returns the original string if no match
                
                
@@ -329,7 +341,7 @@ class Cli(Tools):
         Search and display historical mac records
         """
         if res: self.view(mac_con.search(res))
-            
+               
             
     def host_search(self, q):
         """
