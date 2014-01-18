@@ -2,6 +2,10 @@ import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2
 import net2, os, mnet2, vty, session3, batch, ipcalc
 from subprocess import Popen, PIPE
 from tools import Tools
+try: 
+    import pygeoip
+    gi = pygeoip.GeoIP('c:/GeoLiteCity.dat')
+except: pass
 
 mac_con = macs.Macs()
 dev_con = device2.Device()
@@ -227,6 +231,9 @@ class Cli(Tools):
         scan [ip]    Port scanner
         rlook [ip]    Reverse name lookup
         look[host name]    name lookup
+        decrypt [cisco level 5 encrypted password]    cisco password decoder
+        cidr [ip/bits]      Subnet calculator
+        geoip x.x.x.x    GeoIP info
         """
         
         if 'cmd=' in res: 
@@ -280,10 +287,18 @@ class Cli(Tools):
             res = ''
             
         if 'cidr ' in res:    #cidr calculator
-            net = ipcalc.Network(res[5:])
-            print ' Network:     %s\n First host:  %s\n Last host:   %s\n Broadcast:   %s\n Netmask:     %s\n Num Hosts:   %s\n' % (net.network(), net.host_first(), net.host_last(), net.broadcast(), net.netmask(), str(net.size()-2))
+            try: 
+                net = ipcalc.Network(res[5:])
+                print ' Network:     %s\n First host:  %s\n Last host:   %s\n Broadcast:   %s\n Netmask:     %s\n Num Hosts:   %s\n' % (net.network(), net.host_first(), net.host_last(), net.broadcast(), net.netmask(), str(net.size()-2))
+            except: pass
+            res = ''
             
-            res = ''            
+        if 'geoip ' in res:    #Internet GeIP lookup
+            try:
+                out = gi.record_by_addr(res[6:])
+                self.view(out)
+            except: pass
+            res = ''
             
         return res    #returns the original string if no match
                
