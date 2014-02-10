@@ -1,7 +1,11 @@
+
 class Hosts():
     def __init__(self, verbose=0):
         """
         Generator function to iterate the windows host file
+        
+        Tested with Python ver 2.7.2 on Win7 & Win XP
+        (c) 2012 - 2014 Intelligent Planet Ltd
         """
 
         self.verbose = verbose
@@ -25,3 +29,5 @@ class Hosts():
                         yield self.host, self.ip, self.desc
                             
                     except: pass
+                    
+                        
