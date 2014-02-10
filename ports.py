@@ -1,4 +1,5 @@
 from tools import Tools
+import os
 
 class Ports(Tools):
     def __init__(self, verbose=0):
@@ -18,13 +19,15 @@ class Ports(Tools):
         [portnum_protocol]['name'] = name
         [portnum_protocol]['description'] = description
         
-         Written by Peter Rogers
-        (C) Intelligent Planet 2013
+        Tested with Python ver 2.7.2 on Win7 & Win XP
+        (c) 2012 - 2014 Intelligent Planet Ltd
+        
         """
         
         self.verbose = verbose
         self.port_dict = {}
-        self.load_file = 'c:/ports.csv'
+        self.path = os.getcwd() + '\\'
+        self.load_file = self.path + 'ports.csv'
         self.load()
         
     def load(self):
@@ -32,22 +35,40 @@ class Ports(Tools):
         for row in file:
             if row:
                 try:
+                    key = len(self.port_dict) + 1
                     raw = row.split(',')
-                    key = raw[1] + '_' + raw[2]
                     self.port_dict[key] = {}
-                    self.port_dict[key]['name'] = raw[0]
-                    self.port_dict[key]['description'] = raw[3]
+                    self.port_dict[key]['name'] = raw[0].lower()
+                    self.port_dict[key]['port'] = int(raw[1])
+                    self.port_dict[key]['protocol'] = raw[2].lower()
+                    self.port_dict[key]['description'] = raw[3].lower()
                 except: 
                     if self.verbose > 0: print 'error', row
+                    try: del self.port_dict[key]
+                    except: pass
+                    
+                    
+    def test(self):
+        for num in range(0, 1000): print self.find_port(num)
                 
                 
-    def find_port(self, port, protocol='tcp'):
-        try: 
-            key = str(port) + '_' + protocol.lower()
-            name = self.port_dict[key]['name'].upper().rstrip()
-            desc = self.port_dict[key]['description'].rstrip()
-            return name, desc
+    def find_port(self, search, proto='tcp'):
+        try:             
+            key_list = self.port_dict.keys()
+            for key in key_list:
+                port = self.port_dict[key]['port']
+                protocol = self.port_dict[key]['protocol']
+                name = self.port_dict[key]['name']
+                description =  self.port_dict[key]['description']
+                
+                try:
+                    if int(search) == port and protocol == proto.lower(): return name.upper(), description
+                except: pass
+
+                if name == search and protocol == proto.lower(): return port, description
+                    
+            return search, proto
         
-        except: return port, protocol
+        except: return search, proto
                         
                             
