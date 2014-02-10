@@ -1,10 +1,12 @@
-import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2
-import net2, os, mnet2, vty, session3, batch, ipcalc
+import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2, pynet, auth
+import net2, os, mnet2, vty2, session3, batch, ipcalc, pyputty, shutil, getpass
 from subprocess import Popen, PIPE
 from tools import Tools
 try: 
     import pygeoip
-    gi = pygeoip.GeoIP('c:/GeoLiteCity.dat')
+    path = os.getcwd() + '\\'
+    cfile = path + 'GeoLiteCity.dat'
+    gi = pygeoip.GeoIP(cfile)
 except: pass
 
 mac_con = macs.Macs()
@@ -15,6 +17,8 @@ cache_con = cache_flow.Cache_flow()
 ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
+auth_con = auth.Auth()
+
 
 decrypt=lambda x:''.join([chr(int(x[i:i+2],16)^ord('dsfd;kfoA,.iyewrkldJKDHSUBsgvca69834ncxv9873254k;fg87'[(int(x[:2])+i/2-1)%53]))for i in range(2,len(x),2)])    #http://packetstormsecurity.com/files/author/7338/
 
@@ -27,16 +31,27 @@ class Cli(Tools):
         Search interface for host, ip  and extended information within device db
         Start point for Command line networking toolkit
         
+        Tested with Python ver 2.7.2 on Win7 & Win XP
+        (c) 2012 - 2014 Intelligent Planet Ltd        
         """
         
         self.verbose = 0
         
         ### cli vars ###
         self.search_txt = '\n\nsearch >>>'
+        self.user = getpass.getuser()
         
         ### set the path to csv device files ###
-        try: self.path = 'H:/crt/sessions/'
-        except: self.path = 'C:/Program Files/SecureCRT/Sessions/'
+        try: 
+            self.path = 'H:/crt/sessions/'
+            cfile = self.path + 'telnet.ini'
+            open(cfile)
+        except: 
+            try: 
+                self.path = 'C:/Documents and Settings/' + self.user + '/Application Data/VanDyke/SecureCRT/Config/sessions/'
+                cfile = self.path + 'telnet.ini'
+                open(cfile)
+            except: self.path = os.getcwd() + '\\'
         
         self.log_file = self.path + 'log'
         self.sticky = 1    #can be set to 0 to disable level1 cli
@@ -62,6 +77,9 @@ class Cli(Tools):
         %name,ip     Open ad-hoc session e.g. %Router1,10.1.1.1\n
         sticky 0     Disables level 1 CLI for cut & paste searches    sticky re-enables
         batch [help]    perform batch operations
+        
+        http    get data with http(s) direct
+        prohttp   get data with http(s) via proxy server
 
         """
         print "%s records loaded for %s devices" % (self.total_records, self.total_hosts)
@@ -109,6 +127,14 @@ class Cli(Tools):
                     batch_out = self.batch_con.com(res, self.host_list)
                     if batch_out: print batch_out
                     res = ''
+                    
+                if 'http' in res:    #get data via http
+                    if 'prohttp' in res: http_data = net_con.get_http_proxy(res[3:])
+                    else: http_data = net_con.get_http(res)
+                    print http_data[3], '\n'
+                    print 'status code %d    status msg %s    url %s' % (http_data[0], http_data[1], http_data[2])
+                    res = ''
+                        
                     
                 res = self.level_7(res)    #check macthing commands in the common tools
                 
@@ -199,7 +225,10 @@ class Cli(Tools):
                     raw = self.py_session(ip_address, hostname, res[1], self.cmd_list)
                 q = '' ; c +=1
             
-            if 'vty' in q or 'tty' in q: self.crt_session(hostname, ip_address) ; c +=1
+            if 'vty' in q or 'tty' in q: 
+                try: self.crt_session(hostname, ip_address)
+                except: pyputty.Putty(ip_address)
+                c +=1
                 
             if 'search' in q or 'q' in q or 'exit' in q: return
             
@@ -212,6 +241,11 @@ class Cli(Tools):
                 if res[0] != 'fail': 
                     raw = self.py_session(ip_address, hostname, res[1], q[1:])
                 q = '' ; c +=1
+                
+            try: 
+                ### delete stored TACACS password if not logged in using same user id
+                if auth_con.tacacs_user != self.user: auth_con.tacacs_password = ''
+            except: pass
             
             c -= 1
             
@@ -409,7 +443,7 @@ class Cli(Tools):
     
     def vty_session(self, ip, host, port, cmd):
         print 'command(s) to run', cmd
-        con = vty.Vty(ip, host, port)
+        con = vty2.Vty(ip, host, port, auth_con)
         con.verbose = 1
         self.session_try = 1
         
