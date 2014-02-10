@@ -1,4 +1,4 @@
-import socket, re, time
+import socket, re, time, urllib2
 from subprocess import Popen, PIPE
 from tools import Tools
 
@@ -19,6 +19,8 @@ class Net(Tools):
        
         self.buffers = 1024
         self.error = 'fail'
+        
+        self.web_proxy = '172.19.193.122'
        
         self.port_list = [20, 21, 22, 23, 25, 53, 67, 68, 69, 80, 161, 162, 179, 443, 520, 1719, 1720, 1985, 1998, 2000, 2427, 3389, 5060, 5900, 8080]
         #FTP(20, 21), SSH(22), Telnet(23), SMTP(25), DNS(53), DHCP(67, 68), TFTP(69), HTTP(80), SNMP(161, 162), BGP(179), HTTPS(443), RIP(520)
@@ -74,7 +76,8 @@ class Net(Tools):
         error = self.socket_open(port, ip)
         if error: return error
         time.sleep(self.sleep)
-        return self.socket_recv()
+        res = self.socket_recv()
+        return res
        
        
     def test_ping(self, ip, ttl=255, count=1, timeout=300, size=32):
@@ -95,11 +98,11 @@ class Net(Tools):
         
         m = re.search('Reply from ([0-9.]+):', self.ping_result)
         if m: self.ping_reply = (m.group(1))
-        else: self.ping_reply = '-'
+        else: self.ping_reply = ''
         
         m = re.search('Minimum = ([0-9]+)ms', self.ping_result)
         if m: self.ping_delay = int(m.group(1))
-        else: self.ping_delay = 'timed out'
+        else: self.ping_delay = ''
        
         return 'Ping statistics for %s\n sent %s  recv %s  delay %s  ttl %s  reply from %s' % (ip, self.ping_sent, self.ping_recv, self.ping_delay, self.ping_ttl, self.ping_reply)
        
@@ -107,28 +110,16 @@ class Net(Tools):
     def dns_rlook(self, ip=''):
         """
         Reverse DNS lookup
-        if ip is not specified then self.ip will be resolved and stored as self.host_name
         """
-        try:
-            if ip: return socket.gethostbyaddr(ip)[0]
-            else:
-                self.host_name = socket.gethostbyaddr(self.ip)[0]
-                if self.verbose > 0: print self.host_name
-        except: pass
+        return socket.gethostbyaddr(ip)[0]
            
    
     def dns_look(self, name=''):
         """
         Normal DNS lookup
-        if name is not specified then self.host_name will be looked up and saved as self.ip
         """
-        try:
-            if name: return socket.gethostbyname(name)
-            else:
-                self.ip = socket.gethostbyname(self.host_name)
-                if self.verbose > 0: print self.ip
-        except: pass
-       
+        return socket.gethostbyname(name)
+
       
     def trace(self, ip, name, max_ttl=30):
         """
@@ -205,5 +196,35 @@ class Net(Tools):
             self.scan_dict[port] = self.scan_res
             
         return self.scan_dict
+        
+        
+    def get_http_proxy(self, url):
+        """
+        web capture via proxy
+        """
+        try:
+            proxy = urllib2.ProxyHandler({'http': self.web_proxy})
+            opener = urllib2.build_opener(proxy)
+            urllib2.install_opener(opener)
+            res = urllib2.urlopen(url)
+            return res.code, res.msg, res.url, res.read()
+        
+        except urllib2.HTTPError, e: return e.code, e.msg, e.url, e.read()
+        except urllib2.URLError, e: return 0, 'url error', url, e.reason
+        
+        
+    def get_http(self, url):
+        """
+        direct web capture
+        """
+        try: 
+            res = urllib2.urlopen(url)
+            return res.code, res.msg, res.url, res.read()
+        
+        except urllib2.HTTPError, e: return e.code, e.msg, e.url, e.read()
+        except urllib2.URLError, e: return 0, 'url error', url, e.reason
+             
+        
+        
            
    
