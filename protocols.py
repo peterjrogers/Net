@@ -1,4 +1,5 @@
 from tools import Tools
+import os
 
 class Protocols(Tools):
     def __init__(self, verbose=0):
@@ -18,13 +19,15 @@ class Protocols(Tools):
         [Protocol_num]['name'] = name
         [Protocol_num]['description'] = description
         
-        Written by Peter Rogers
-        (C) Intelligent Planet 2013
+        Tested with Python ver 2.7.2 on Win7 & Win XP
+        (c) 2012 - 2014 Intelligent Planet Ltd
         """
         
         self.verbose = verbose
         self.protocol_dict = {}
-        self.load_file = 'c:/protocols.csv'
+        
+        self.path = os.getcwd() + '\\'
+        self.load_file = self.path + 'protocols.csv'
         self.load()
         
     def test(self): 
