@@ -14,7 +14,7 @@ class Auth():
         (c) 2012 - 2014 Intelligent Planet Ltd
         """
         
-        self.auth_path = 'h:/config/'
+        self.auth_path = 'path to dir'
         self.tacacs_user = ''
         self.tacacs_password = ''
         self.bt_user = ''
@@ -33,7 +33,7 @@ class Auth():
     def auth_bt(self):
         ### Get BT user / password and store in memory
         
-        self.bt_user = 'produban'
+        self.bt_user = 'user'
         try: self.bt_password = open(self.auth_path + 'btpw').read()
         except: self.bt_password = getpass.getpass('Enter BT Password: ')
     
