@@ -8,9 +8,6 @@ class Ssh(Tools):
         """
         usage - 
         con = ssh.Ssh(ip, host, auth_con)
-        
-        
-
         """
        
         self.ip = ip
@@ -165,18 +162,61 @@ class Ssh(Tools):
             time.sleep(self.delay)
             if self.verbose > 0: self.view(self.out)
             
-            
+    
+    def count_rows(self, rows, splitter):
+        """ count the rows and return a list of the row count """
+        return [len(self.split_row(row, splitter)) for row in rows]
+        
+        
+    def unique_list(self, nums):
+        """ filter an input list into unique values"""
+        out = []
+        for num in nums:
+            if num not in out: out.append(num)
+        return out
+        
+        
+    def mode_list(self, nums):
+        """ return the mode average of a list """
+        unique = self.unique_list(nums)
+        max = 0 ; number = 0
+        for num in unique:
+            if  nums.count(num) > max: max = nums.count(num) ; number = num
+        return number, nums.index(number)
+                  
+    
+    def split_row(self, row, splitter='  '):
+        try:
+            out = []
+            temp = row.split(splitter)
+            for item in temp:
+                if item: out.append(item)    #ignore blanks
+            return out
+        except: return 0
+        
+    
     def get_field_width(self):
         """
         discover the fixed field widths for table type views and produce a dict of values
         {0: {'Interface': {'start': 0, 'end': 26}}, 1: {'IP-Address': {'start': 27, 'end': 42}}, 2: {'OK?': {'start': 43, 'end':
         46}}, 3: {'Method': {'start': 47, 'end': 53}}, 4: {'Status': {'start': 54, 'end': 75}}, 5: {'Protocol': {'start': 76}}}
         """
-        self.ignore_list = ['ver']
+        self.ignore_list = []
         out = {}
-        row = self.out[0]
-        desc = row.split()
+        splitter_list = ['  ', '\t', ' ']
+        
+        # calculate the mode average column width for a given splitter char
+        # and use the first row of that length as the header fields
+        for splitter in splitter_list:
+            nums = self.count_rows(self.out, splitter)
+            if len(self.unique_list(nums)) == 1: break
+        
+        pos = self.mode_list(nums)[1]
+        
+        row = self.out[pos]
+        desc = self.split_row(row)
         if len(desc) < 2: return out    #ignore single field rows
+        
         for item in self.ignore_list:
             if item in self.command.lower(): return out
         pos = 0
@@ -192,7 +232,7 @@ class Ssh(Tools):
             
             last_item = item
             pos += 1
-                           
+        print out                   
         return out
             
             
