@@ -1,5 +1,6 @@
 import os, time
 from ssh import Ssh
+from telnet import Telnet
 from tools import Tools
 
 class Vty(Tools, Ssh):
@@ -9,20 +10,20 @@ class Vty(Tools, Ssh):
         self.ip = ip
         self.hostname = hostname.lower()
         self.out_dict = out_dict
-        self.auth_con = auth_con
-        self.user = ''
-        self.password = ''
-        
+        self.auth_con = auth_con        
         
         self.path = os.getcwd() + '\\'
+        
         self.banner_id = 'WARNING'    #string used to determine if a banner is present
         self.banner_end = 'prosecuted'    #string used to determine end of the banner
+        
         self.delay = 0.5
         self.verbose = 1
         
         self.check_out_dict()
         
-        Ssh.__init__(self, self.ip, self.hostname, self.out_dict, self.auth_con)
+        Ssh.__init__(self, self.ip, self.hostname, self.auth_con)
+        Telnet.__init__(self, self.ip, self.hostname, self.auth_con)
         
         
     def check_out_dict(self):
@@ -74,7 +75,7 @@ class Vty(Tools, Ssh):
             self.init_con()
             time.sleep(self.delay)
             if self.verbose > 0: print '\n\n', self.hostname + '#' + self.command, '\n\n'
-            error = self.init_cmd(self.command)
+            error = self.exec_cmd(self.command)
             if error: self.out = error
             else: 
                 self.read()
@@ -222,7 +223,7 @@ class Vty(Tools, Ssh):
     def test(self, cmd='sh ver'):
         self.check_auth()
         self.init_con()
-        self.init_cmd(cmd)
+        self.exec_cmd(cmd)
         self.read()
         self.trim_banner()
         self.view(self.out)
