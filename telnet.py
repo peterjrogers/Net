@@ -1,16 +1,17 @@
 import telnetlib, os
 from tools import Tools
+from vty3 import Vty
 
-class Telnet(Tools):
-    def __init__(self, ip, hostname, auth_con=''):
+class Telnet(Tools, Vty):
+    def __init__(self, ip, hostname, out_dict='', auth_con=''):
         Tools.__init__(self)
-        
+        Vty.__init__(self, hostname, out_dict)
         """
         interface to the the telnet library
         """
        
         self.ip = ip
-        self.hostname = hostname
+        self.hostname = hostname.lower()
         self.port = 23
         
         self.auth_con = auth_con
@@ -33,6 +34,7 @@ class Telnet(Tools):
         self.password_text = 'Password: '
         self.exit_text = 'q'
         self.banner_list = ['\d+>', '--More--', '\d+#']
+        self.more = '--More--'
         
         
     def start_debug(self):
@@ -82,29 +84,29 @@ class Telnet(Tools):
     def write(self, command):
         """ send a string to the telnet socket """
         try: 
-            self.command = command
-            self.con.write(self.command + self.newline)
+            self.write_command = command
+            self.con.write(self.write_command + self.newline)
         except BaseException, e: return e
         
             
     def read(self):
         """ read from telnet socket after exec_cmd """
         try: 
-            self.read_out = self.prompt
+            self.read_out = ''#self.prompt
             self.read_res = self.con.expect(self.banner_list, self.timeout)
-            self.read_out += self.read_res
+            self.read_out += self.read_res[2]
             self.read_more()
             self.split_out = self.read_out.split(self.newline)    #convert from string to list
         except BaseException, e: return e
         
         
     def read_more(self):
+        """ look for the --More-- prompt on multi page output's - this negates the need for term len 0 """
         try:
             while self.read_res[0] == 1:    #expect matched the index of 1 in self.banner_list ('--More--')
                 self.write(self.space)
-                self.read_out += self.newline
                 self.read_res = self.con.expect(self.banner_list, self.timeout)
-                self.read_out += res[2]
+                self.read_out += self.read_res[2]
         except BaseException, e: return e
              
         
@@ -133,6 +135,14 @@ class Telnet(Tools):
                 
         if not self.password:
             self.check_auth_con()
-            self.password = self.auth_con.tacacs_password  
-    
-    
+            self.password = self.auth_con.tacacs_password
+            
+            
+    def test_me(self, cmd):
+        self.init_con()
+        self.exec_cmd(cmd)
+        self.read()
+        print self.read_out
+        
+        
+
