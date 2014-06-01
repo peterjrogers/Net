@@ -1,18 +1,18 @@
 import paramiko, os
 from tools import Tools
+from vty3 import Vty
 
-class Ssh(Tools):
-    def __init__(self, ip, hostname, auth_con=''):
+class Ssh(Tools, Vty):
+    def __init__(self, ip, hostname, out_dict='', auth_con=''):
         Tools.__init__(self)
-        
+        Vty.__init__(self, hostname, out_dict)
         """
         interface to the paramiko open ssl module
         """
        
         self.ip = ip
-        self.hostname = hostname
+        self.hostname = hostname.lower()
         self.port = 22
-        
         self.auth_con = auth_con
         self.user = ''
         self.password = ''
