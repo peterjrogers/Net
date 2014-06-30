@@ -222,4 +222,3 @@ class Vty():
         self.execute_commands()
         self.close()
         
-      
