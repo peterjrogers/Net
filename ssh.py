@@ -97,4 +97,3 @@ class Ssh(Tools, Vty):
             self.check_auth_con()
             self.password = self.auth_con.tacacs_password  
     
-    
