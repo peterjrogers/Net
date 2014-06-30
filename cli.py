@@ -1,5 +1,5 @@
-import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2, pynet, auth
-import net2, os, mnet2, vty2, session3, batch, ipcalc, pyputty, shutil, getpass
+import sys, time, macs, device, contact, mac, cache_flow, arps, ports, pynet, auth
+import net2, os, mnet2, vty, session, batch, ipcalc, pyputty, shutil, getpass
 from subprocess import Popen, PIPE
 from tools import Tools
 try: 
@@ -10,11 +10,11 @@ try:
 except: pass
 
 mac_con = macs.Macs()
-dev_con = device2.Device()
+dev_con = device.Device()
 contact_con = contact.Contact()
 mac_oui = mac.Mac()
 cache_con = cache_flow.Cache_flow()
-ports_con = ports2.Ports()
+ports_con = ports.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
 auth_con = auth.Auth()
@@ -128,12 +128,26 @@ class Cli(Tools):
                     if batch_out: print batch_out
                     res = ''
                     
-                if 'http' in res:    #get data via http
-                    if 'prohttp' in res: http_data = net_con.get_http_proxy(res[3:])
-                    else: http_data = net_con.get_http(res)
-                    print http_data[3], '\n'
-                    print 'status code %d    status msg %s    url %s' % (http_data[0], http_data[1], http_data[2])
+                if 'whois ' in res:
+                    try:
+                        url = 'http://www.whois.com/whois/' + res[6:]
+                        print url
+                        http_data = net_con.get_http_proxy(url)[3]
+                        #print http_data
+                        self.viewwhois(http_data)
+                    except: pass
                     res = ''
+                    
+                if 'http' in res:    #get data via http
+                    try:
+                        if 'prohttp' in res: http_data = net_con.get_http_proxy(res[3:])
+                        else: http_data = net_con.get_http(res)
+                        self.view_http(http_data[3])
+                        print 'status code %d    status msg %s    url %s' % (http_data[0], http_data[1], http_data[2])
+                    except: pass
+                    res = ''
+                    
+                
                         
                     
                 res = self.level_7(res)    #check macthing commands in the common tools
@@ -340,11 +354,11 @@ class Cli(Tools):
     def pre_session(self, res):    
         """
         Start pre made session from  self.path\Sessions\
-        Use the launch function in session3.py with an empty connection_type
+        Use the launch function in session.py with an empty connection_type
         Pass in the self.path value to keep it working with custom secure crt implementations
         """
         if len(res) > 1:
-            ses_con = session3.SecureCRT(res[1:], '0.0.0.0', self.path)
+            ses_con = session.SecureCRT(res[1:], '0.0.0.0', self.path)
             ses_con.launch()
             
             
@@ -352,7 +366,7 @@ class Cli(Tools):
         """
         Make a session for SecureCRT and launch a new CRT window
         """
-        ses_con = session3.SecureCRT(hostname, ip, self.path)
+        ses_con = session.SecureCRT(hostname, ip, self.path)
         ses_con.make()
         ses_con.launch()
         
@@ -361,7 +375,7 @@ class Cli(Tools):
         """
         Test the connection type and authentication
         """
-        ses_con = session3.SecureCRT(hostname, ip, self.path)
+        ses_con = session.SecureCRT(hostname, ip, self.path)
         return ses_con.test(), ses_con.port
     
 
@@ -443,11 +457,11 @@ class Cli(Tools):
     
     def vty_session(self, ip, host, port, cmd):
         print 'command(s) to run', cmd
-        con = vty2.Vty(ip, host, port, auth_con)
-        con.verbose = 1
+        con = vty.Vty(ip, host, port, auth_con)
+        con.verbose = 0
         self.session_try = 1
         
-        while self.session_try < 4:
+        while self.session_try < 3:
         
             if port == 23:
                 res = con.telnet_go(cmd)
