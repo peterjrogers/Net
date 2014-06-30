@@ -1,4 +1,5 @@
 
+
 class Hosts():
     def __init__(self, verbose=0):
         """
@@ -9,11 +10,12 @@ class Hosts():
         """
 
         self.verbose = verbose
-        self.load_file = 'C:/WINDOWS/system32/drivers/etc/hosts'
+        #self.load_file = 'C:/WINDOWS/system32/drivers/etc/hosts'
+		#path = os.getcwd() + '\\'
         
     
-    def get_hosts(self):
-        file = open(self.load_file, 'rU')
+    def get_hosts(self, cfile):
+        file = open(cfile, 'rU')
         for row in file:
             if row:
                 if '#' not in row[0]:
