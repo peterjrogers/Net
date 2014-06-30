@@ -3,7 +3,7 @@ from tools import Tools
 from vty3 import Vty
 
 class Telnet(Tools, Vty):
-    def __init__(self, ip, hostname, out_dict='', auth_con=''):
+    def __init__(self, ip='', hostname='', out_dict='', auth_con=''):
         Tools.__init__(self)
         Vty.__init__(self, hostname, out_dict)
         """
@@ -143,6 +143,5 @@ class Telnet(Tools, Vty):
         self.exec_cmd(cmd)
         self.read()
         print self.read_out
-        
         
 
