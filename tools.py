@@ -1,3 +1,5 @@
+import os, platform
+
 class Tools():
     def __init__(self):
         self.update_time()
@@ -207,5 +209,16 @@ class Tools():
             if '\n' in line:
                 print line
                 line = ''
+                
+                
+    def send_clip(self, txt_string):
+        """
+        Send a string to the windows clipboard pipe feature
+        """
+        try: 
+            win_ver = platform.platform().lower()
+            if 'windows-7' in win_ver: os.system(txt_string)
+        except: pass
+            
             
             
