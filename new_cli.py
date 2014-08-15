@@ -140,6 +140,8 @@ class Cli(Tools):
                         #print http_data
                         self.viewwhois(http_data)
                         ip_string = res[6:]
+                        print '\nRule to block this host on RT03PBLYINET01\nip route %s 255.255.255.255 192.0.2.1 tag 666' % ip_string
+                        self.send_clip('echo password| clip')
                     except: pass
                     finally: res = ''
                     
@@ -303,6 +305,14 @@ class Cli(Tools):
             self.cmd_list = res[4:].split(',')
             print self.cmd_list ; res = ''
         
+        if 'runarp' in res:    #load arp report from a manually loaded source file
+            try:
+                self.arp_start()
+                self.arp_con.arp_go()
+                self.arp_con.save_report()
+            except: print 'error'
+            finally: res = ''
+        
         if 'arp ' in res:    #perform a search of the historic arp db
             self.arp_search(res[4:])
             res = ''
@@ -413,6 +423,11 @@ class Cli(Tools):
         if len(res) == 4:
             try: 
                 for item in res: int(item)
+                
+                #perfrom a db lookup
+                res = self.search_db(ip)
+                if res: return res    #db search produced a unique match
+                
                 return ip, con.dns_rlook(ip)
             except: return ip, ip
         
@@ -482,10 +497,17 @@ class Cli(Tools):
     def arp_start(self):
         self.arp_con = arps.Arp()
         
+        
     def arp_search(self, res):
         """
         Search and display historical arp records and goto level_1 if a single matching entry is found
         """
+        self.arp_con.display_by_key(res)
+        
+        if 'keys' in res:
+            self.arp_con.list_keys()
+            return
+        
         if res: 
             view_list = self.arp_con.search_mac(res)
             if len(view_list) == 1: 
