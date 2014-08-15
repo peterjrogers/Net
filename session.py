@@ -1,8 +1,10 @@
-import net2
+import net2, os
 from subprocess import Popen
+from tools import Tools
 
-class SecureCRT():
-    def __init__(self, hostname, ip_address, path=''):   
+class SecureCRT(Tools):
+    def __init__(self, hostname, ip_address, path=''):
+        Tools.__init__(self)
         """
         This class is designed to create and use session files for Secure CRT 
         by cloning and modifying a pre made template session file.
@@ -44,8 +46,8 @@ class SecureCRT():
         from python shell
         >>>x.launch_session()
         
-        Written by Peter Rogers
-        (C) Intelligent Planet 2013
+        Tested on Win XP with Python 2.7
+        (c) 2012 - 2014 Intelligent Planet Ltd
         """
         
         #passed in class values
@@ -64,7 +66,7 @@ class SecureCRT():
             self.default = 1
         self.output_path = self.path + self.connection_type + '/'
         self.output_file_name = self.output_path + self.hostname + self.file_extension
-       
+    
     
     def make(self):
         """
@@ -85,6 +87,7 @@ class SecureCRT():
         outfile = open(self.output_file_name, 'w')
         outfile.write(self.output_text)
         outfile.close()
+        #print 'creating file', self.output_file_name
         
         
     def launch(self):
@@ -114,6 +117,7 @@ class SecureCRT():
         
         part_b = '%s"' % (self.hostname)
         cmd = "Popen('%s\\\%s')" % (part_a, part_b)
+        #print cmd
         exec(cmd)
         
         
@@ -130,29 +134,40 @@ class SecureCRT():
         4) if the type can not be determined return 'fail'
         """
         
-        bt_list = ['san-b', 'san-h', 'san-t', 'ab-h', 'san-d']
-        prod_list = ['prod', 'grupo']
+        bt_host = ['san-b', 'san-h', 'san-t', 'ab-h', 'san-d', 'ab-bbg', 'alg-1004', 'alg-1002', 'alg-1003', 'alg-1004', 'alg-1005', 'alg-1009', 'alg-101']
+        bt_banner = [' bt ', 'british', 'telecommunications', 'BT', 'British', 'Telecommunications']
+        prod_banner = ['prod', 'grupo']
         ssh2_list = ['2', '1.99']
         
         con = net2.Net()
+        
+        #get the bt enable password and load it into the windows clipboard
+        try:
+            res = open('h:/config/btpw').read()
+            self.btpw = 'echo %s| clip' % res
+        except: self.btpw = 'echo error| clip'
+        
         
         #Telnet test
         self.port = 23
         res = con.test_port(self.port, self.ip_address)
         if 'fail' not in res: 
-            res = res.lower()
+            
             if verbose >0: print res
         
-            if 'bt' in res: return 'bt'
+            for item in bt_banner:
+                if item in res: 
+                   self.send_clip(self.btpw)
+                   return 'bt'
             
-            for item in prod_list:
-                if item in self.hostname.lower(): return 'telnet'
-                
-            if len(res) > 0: return 'telnet'
+            for item in prod_banner:
+                if item in res.lower(): return 'telnet'
         
-        #fallback on hostname recognition        
-        for item in bt_list:
-            if item in self.hostname.lower(): return 'bt'    
+        #fallback on hostname recognition and use telnet if a bt device
+        for item in bt_host:
+            if item in self.hostname.lower(): 
+                self.send_clip(self.btpw)
+                return 'bt'
             
             
         #SSH test    
@@ -167,9 +182,6 @@ class SecureCRT():
         
             if len(res) > 0: return 'ssh'
             
+        print 'using default telnet'
         return 'telnet'
         
-        
-               
-    
-    
