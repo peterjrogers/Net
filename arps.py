@@ -28,8 +28,6 @@ class Arp(Mnet, Mac):
         new nexus format
         Address         Age       MAC Address     Interface
         172.19.167.5    00:00:57  0001.d7e8.0046  Vlan167         
- 
-        
         """
         
         self.verbose = 1
@@ -50,16 +48,39 @@ class Arp(Mnet, Mac):
             self.arp_file = open(self.db_file)
             self.arp_dict = pickle.load(self.arp_file)
             self.arp_file.close()
-        
         except: self.arp_dict = {}
         
         self.make_index()
+    
+    
+    def display_by_key(self, key):    #display the records for a primary key 
         
-        #search lists
-        #self.arp_ip_list = sorted(self.ip_index.keys())
-        #self.arp_mac_list = [x.split('_')[1] for x in self.mac_index.keys()]
-    
-    
+        try: self.arp_dict[key]    #check if the key exists
+        except: return 'key error'
+        
+        print '\n IP Address      Branch             MAC             Intf         Delay       Vendor      Hostname\n'
+        vlan_list =  self.arp_dict[key].keys()
+        for vlan in vlan_list:
+            ip_mac_list = self.arp_dict[key][vlan].keys()
+            for ip_mac in ip_mac_list:
+                ip = ip_mac.split('_')[0]
+                mac = ip_mac.split('_')[1]
+                vendor = self.arp_dict[key][vlan][ip_mac]['vendor']
+                ping = self.arp_dict[key][vlan][ip_mac]['ping']
+                date = self.arp_dict[key][vlan][ip_mac]['date']
+                time = self.arp_dict[key][vlan][ip_mac]['time']
+                try:
+                    dns_name = self.arp_dict[key][vlan][ip_mac]['dns_name']
+                except: dns_name = ''
+                
+                print '%s%s  %s%s  %s  %s%s %s%s %s%s %s ' % (ip, self.space(ip, 16), key, self.space(key, 16), mac, vlan, self.space(vlan, 10), ping, self.space(ping, 13), vendor, self.space(vendor, 10), dns_name)
+                
+                
+    def list_keys(self):
+        key_list = self.arp_dict.keys()
+        for key in key_list: print key
+
+
     def search_mac(self, mac):
         res = [x for x in self.name_index.keys() if mac in x]    #check for dns_entries
         if res: 
@@ -100,24 +121,22 @@ class Arp(Mnet, Mac):
             if row:
                 ip = ''
                 rows = row[0]
+                
                 if self.verbose > 2: print rows
                 
-                if '#sh' in rows: branch = rows.split('#')[0]    #use router name as last resort
-                if '>' in rows: branch = rows.split('>')[0]    #
+                if '#sh' in rows or '# sh' in rows: 
+                    branch = rows.split('#')[0].lower()    #use router name as last resort
+                if '>' in rows: branch = rows.split('>')[0].lower()    #
                 if 'san' in rows: branch = rows[4:9]           #san uk branch
                 if 'ab-h' in rows: branch = 'h' + rows[5:9]     #head office number
                 if 'alg' in rows: branch = 'h' + rows[4:8]    #ALG head office number
                 if 'bip' in rows: branch = 'b' + rows[4:8]       #BIP agency
-                
-                try: 
-                    if branch: pass
-                except: branch = 'b0000'    #failback option
                     
-                if branch not in self.arp_dict:
-                    self.arp_dict[branch] = {}
-                    
-                if branch not in self.branch_list: self.branch_list.append(branch)
-                if branch not in self.test_list: self.test_list.append(branch)
+                try:
+                    if branch not in self.arp_dict: self.arp_dict[branch] = {}
+                    if branch not in self.branch_list: self.branch_list.append(branch)
+                    if branch not in self.test_list: self.test_list.append(branch)
+                except: pass
                 
                 if 'Glean' in rows: self.nexus = 1
                 
@@ -126,7 +145,7 @@ class Arp(Mnet, Mac):
                     interface = rows[61:len(rows)]
                     mac = rows[38:52]
                      
-                if self.nexus == 1 and '.' in rows:
+                if self.nexus == 1 and '.' in rows and 'Incomplete' not in rows.lower():
                     ip = rows.split()[0]
                     interface = rows.split()[3]
                     mac = rows.split()[2]
