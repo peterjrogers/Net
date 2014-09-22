@@ -141,7 +141,7 @@ class Cli(Tools):
                         self.viewwhois(http_data)
                         ip_string = res[6:]
                         print '\nRule to block this host on RT03PBLYINET01\nip route %s 255.255.255.255 192.0.2.1 tag 666' % ip_string
-                        self.send_clip('echo St3venH4wk!ng| clip')
+                        self.send_clip('echo | clip')
                     except: pass
                     finally: res = ''
                     
