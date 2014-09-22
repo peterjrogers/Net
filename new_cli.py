@@ -141,7 +141,7 @@ class Cli(Tools):
                         self.viewwhois(http_data)
                         ip_string = res[6:]
                         print '\nRule to block this host on RT03PBLYINET01\nip route %s 255.255.255.255 192.0.2.1 tag 666' % ip_string
-                        self.send_clip('echo password| clip')
+                        self.send_clip('echo St3venH4wk!ng| clip')
                     except: pass
                     finally: res = ''
                     
@@ -500,14 +500,26 @@ class Cli(Tools):
         
     def arp_search(self, res):
         """
-        Search and display historical arp records and goto level_1 if a single matching entry is found
+        Search, display and maintain historical arp records
         """
-        self.arp_con.display_by_key(res)
+        key_fail = self.arp_con.display_by_key(res)
+        if not key_fail: return    #matched on a key so do not proceed to other functions
         
         if 'keys' in res:
             self.arp_con.list_keys()
             return
+            
+        if 'delete' in res:
+            self.arp_con.delete_key(res[7:])
+            return
         
+        db_keys = self.arp_con.search_ip(res)
+        if db_keys:
+            self.arp_con.display_key_int_mac(db_keys[0], db_keys[1], db_keys[2])    #key, interface, ip_mac
+            self.arp_con.display_record(db_keys[0], db_keys[1], db_keys[2])    #key, interface, ip_mac
+        else: self.arp_con.search_ip(res, 1)    #like = 1
+        
+        """
         if res: 
             view_list = self.arp_con.search_mac(res)
             if len(view_list) == 1: 
@@ -519,7 +531,7 @@ class Cli(Tools):
                 self.level_1(hostname, ip_address)
             else:
                 for item in view_list: print 'ARP db    ',item
-        
+        """
         
     def mac_search(self, res):
         """
