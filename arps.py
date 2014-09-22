@@ -56,7 +56,7 @@ class Arp(Mnet, Mac):
     def display_by_key(self, key):    #display the records for a primary key 
         
         try: self.arp_dict[key]    #check if the key exists
-        except: return 'key error'
+        except: return 'key fail'
         
         print '\n IP Address      Branch             MAC             Intf         Delay       Vendor      Hostname\n'
         vlan_list =  self.arp_dict[key].keys()
@@ -73,14 +73,55 @@ class Arp(Mnet, Mac):
                     dns_name = self.arp_dict[key][vlan][ip_mac]['dns_name']
                 except: dns_name = ''
                 
-                print '%s%s  %s%s  %s  %s%s %s%s %s%s %s ' % (ip, self.space(ip, 16), key, self.space(key, 16), mac, vlan, self.space(vlan, 10), ping, self.space(ping, 13), vendor, self.space(vendor, 10), dns_name)
+                print '%s%s  %s%s  %s  %s%s %s%s %s%s %s ' % (ip, self.space(ip, 16), key, self.space(key, 16), mac, vlan, self.space(vlan, 25), ping, self.space(ping, 13), vendor, self.space(vendor, 10), dns_name)
                 
                 
     def list_keys(self):
         key_list = self.arp_dict.keys()
-        for key in key_list: print key
+        key_list.sort()
+        for key in key_list: print key.upper()
+        
+        
+    def delete_key(self, key):
+        #delete a site / device level dict - i.e. arp_dict['b0096'] = {}
+        print 'deleting records for site id / device: ', key
+        try: 
+            self.arp_dict[key]
+            del self.arp_dict[key]
+            self.save_dict()
+        except: pass
+          
+    
+    def search_ip(self, ip_address, like=''):
+        #search the dict for an exact IP address match and return the key, interface and ip_mac to access the record
+        key_list = self.arp_dict.keys()
+        for key in key_list:
+            interfaces = self.arp_dict[key].keys()
+            for interface in interfaces:
+                ip_macs = self.arp_dict[key][interface].keys()
+                for ip_mac in ip_macs:
+                    ip = self.arp_dict[key][interface][ip_mac]['ip']
+                    if ip_address == ip: return key, interface, ip_mac
+                    if like and ip_address in ip: print ip, key
+                                              
+    
+    def display_key_int_mac(self, key, interface, ip_mac):
+        print 'Site id', self.space('Site id', 12), key
+        print 'Interface', self.space('interface', 12), interface
+        print 'Mac', self.space('mac', 12), ip_mac.split('_')[1]
+    
+    
+    def display_record(self, key, interface, ip_mac):
+        field_list = self.arp_dict[key][interface][ip_mac].keys()
+        for field in field_list:
+            entry = self.arp_dict[key][interface][ip_mac][field]
+            print field.capitalize(), self.space(field, 12), entry
+    
 
-
+    
+    
+    
+    
     def search_mac(self, mac):
         res = [x for x in self.name_index.keys() if mac in x]    #check for dns_entries
         if res: 
