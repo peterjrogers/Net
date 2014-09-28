@@ -72,12 +72,16 @@ class Net(Tools):
         return self.socket_recv()
        
        
-    def test_port(self, port, ip):
+    def test_port(self, port, ip, send=''):
         error = self.socket_open(port, ip)
         if error: return error
         time.sleep(self.sleep)
-        res = self.socket_recv()
-        return res
+        if send:
+            #print self.socket_recv()
+            print send
+            self.socket_send(send)
+            time.sleep(self.sleep)  
+        return self.socket_recv()
        
        
     def test_ping(self, ip, ttl=255, count=1, timeout=300, size=32):
