@@ -93,17 +93,22 @@ class Arp(Mnet, Mac):
           
     
     def search_ip(self, ip_address, like=''):
-        #search the dict for an exact IP address match and return the key, interface and ip_mac to access the record
+        #search the dict for an exact IP or MAC address match and return the key, interface and ip_mac to access the record
         key_list = self.arp_dict.keys()
         for key in key_list:
             interfaces = self.arp_dict[key].keys()
             for interface in interfaces:
                 ip_macs = self.arp_dict[key][interface].keys()
                 for ip_mac in ip_macs:
+                    mac = ip_mac.split('_')[1]
                     ip = self.arp_dict[key][interface][ip_mac]['ip']
                     if ip_address == ip: return key, interface, ip_mac
-                    if like and ip_address in ip: print ip, key
-                                              
+                    if ip_address == mac: return key, interface, ip_mac
+                    
+                    #no exact matches so search for partial matching
+                    if like and ip_address in ip: print ip, self.space(ip, 17), key
+                    elif like and ip_address in mac: print mac, self.space(mac, 17), ip, self.space(ip, 17), key
+                    
     
     def display_key_int_mac(self, key, interface, ip_mac):
         print 'Site id', self.space('Site id', 12), key
@@ -117,11 +122,8 @@ class Arp(Mnet, Mac):
             entry = self.arp_dict[key][interface][ip_mac][field]
             print field.capitalize(), self.space(field, 12), entry
     
-
     
-    
-    
-    
+    """
     def search_mac(self, mac):
         res = [x for x in self.name_index.keys() if mac in x]    #check for dns_entries
         if res: 
@@ -150,7 +152,8 @@ class Arp(Mnet, Mac):
         for mac_key in res:
             self.view(self.return_record(mac_key))
             print
-            
+    """
+    
         
     def load_arp(self):    #load a csv file and return a list
         import csv
@@ -233,7 +236,7 @@ class Arp(Mnet, Mac):
         return ''
      
      
-    def views(self, filter=''): self.view_pretty(self.arp_dict, filter)    #view a single branch with filter
+    #def views(self, filter=''): self.view_pretty(self.arp_dict, filter)    #view a single branch with filter
     
     
     def load_ping(self):
