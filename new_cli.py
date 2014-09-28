@@ -18,6 +18,7 @@ ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
 auth_con = auth.Auth()
+auth_con.auth_enable()    #load the enable password
 
 
 decrypt=lambda x:''.join([chr(int(x[i:i+2],16)^ord('dsfd;kfoA,.iyewrkldJKDHSUBsgvca69834ncxv9873254k;fg87'[(int(x[:2])+i/2-1)%53]))for i in range(2,len(x),2)])    #http://packetstormsecurity.com/files/author/7338/
@@ -141,7 +142,8 @@ class Cli(Tools):
                         self.viewwhois(http_data)
                         ip_string = res[6:]
                         print '\nRule to block this host on RT03PBLYINET01\nip route %s 255.255.255.255 192.0.2.1 tag 666' % ip_string
-                        self.send_clip('echo | clip')
+                        send = 'echo %s| clip' % auth_con.enable_password
+                        self.send_clip(send)
                     except: pass
                     finally: res = ''
                     
@@ -286,11 +288,12 @@ class Cli(Tools):
     def level_7(self, res):
         """
         arp [ip mac hostname]    Display arp records\n
+        runarp    load arp report from a manually loaded source file (R++)\n
         mac [mac]    Display mac records\n
         name        Display contact db records\n
         oui [mac]  Display MAC OUI info\n
-        ports [# / name]  Display well known port info\n
-        ping x.x.x.x [:port]  Ping IP / Port\n
+        ports [# / name]  Display well known port info - search by port #, name or desc\n
+        ping x.x.x.x [:port]  Ping MAC, Nmae, IP / Port with DNS, Reverse DNS, ARP & Db lookup\n
         trace [ip]    Traceroute\n
         scan [ip]    Port scanner\n
         rlook [ip]    Reverse name lookup\n
@@ -299,6 +302,8 @@ class Cli(Tools):
         cidr [ip/bits]      Subnet calculator\n
         geoip x.x.x.x    GeoIP info\n
         whois x.x.x.x    Perform a whois lookup on an internet address\n
+        send x.x.x.x     send a string to a TCP port with - send 10.7.9.201 80 get\n
+        telnet / ssh x.x.x.x    connect to host by ip or domin name\n
         """
         
         if 'cmd=' in res: 
@@ -314,7 +319,8 @@ class Cli(Tools):
             finally: res = ''
         
         if 'arp ' in res:    #perform a search of the historic arp db
-            self.arp_search(res[4:])
+            try: self.arp_search(res[4:])
+            except: pass
             res = ''
                 
         if 'mac ' in res:    #perform a search of the historic mac db
@@ -330,12 +336,20 @@ class Cli(Tools):
             res = ''
             
         if 'ports ' in res:    #perform a well know port lookup
-            print ports_con.find_port(res[6:])
+            ports_con.find_port(res[6:])
             res = ''
             
         if 'ping ' in res:    #perform a ping or port ping test by specifying the ip address and port if required
             self.ping_tool(res[5:])
             res = ''
+            
+        if 'send ' in res:    #send a string to a TCP port with - send 10.7.9.201 80 get
+            try:
+                sres = res[5:].split(' ')
+                end = len(sres[0]) + len(sres[1]) + 7    #starting point of the command
+                print net_con.test_port(int(sres[1]), sres[0], res[end:].strip("'"))
+            except: pass
+            finally: res = ''
             
         if 'trace ' in res:    #perform a traceroute
             try:
@@ -455,6 +469,13 @@ class Cli(Tools):
         res = self.search_db(ip)
         if res: return res    #db search produced a unique match
         
+        #perform an arp lookup
+        res = self.arp_con.search_ip(ip)
+        if res: 
+            print 'matching ARP record'
+            self.arp_search(ip)
+            ip_res = res[2].split('_')[0]
+            return ip_res, ip_res
         
     def vty_method(self, hostname, ip_address):
         if hostname == ip_address:
