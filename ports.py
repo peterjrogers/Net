@@ -50,6 +50,10 @@ class Ports(Tools):
                     
     def test(self):
         for num in range(0, 1000): print self.find_port(num)
+        
+        
+    def display_record(self, port, protocol, name, description):
+        print port, self.space(port, 7), protocol, self.space(protocol), name, self.space(name, 20), description
                 
                 
     def find_port(self, search, proto='tcp'):
@@ -60,15 +64,25 @@ class Ports(Tools):
                 protocol = self.port_dict[key]['protocol']
                 name = self.port_dict[key]['name']
                 description =  self.port_dict[key]['description']
-                
-                try:
-                    if int(search) == port and protocol == proto.lower(): return name.upper(), description
-                except: pass
 
-                if name == search and protocol == proto.lower(): return port, description
-                    
-            return search, proto
+                #search on port number
+                try:
+                    if int(search) == port and protocol == proto.lower(): 
+                        self.display_record(port, protocol, name, description)
+                        return #name.upper(), description
+                except: pass
+                
+                #search on port name
+                if name == search and protocol == proto.lower(): 
+                    self.display_record(port, protocol, name, description)
+                    return #port, description
+                
+                #search on like match of description
+                if search in description: self.display_record(port, protocol, name, description)
+                
+                #search on like match of name
+                elif search in name: self.display_record(port, protocol, name, description)
         
-        except: return search, proto
+        except: pass
                         
                             
