@@ -1,5 +1,5 @@
-import sys, time, macs, device, contact, mac, cache_flow, arps, ports, pynet, auth
-import net2, os, mnet2, vty, session, batch, ipcalc, pyputty, shutil, getpass
+import sys, time, macs, device2, contact, mac, cache_flow, arps, ports2, pynet, auth
+import net2, os, mnet2, vty2, session3, batch, ipcalc, pyputty, shutil, getpass
 from subprocess import Popen, PIPE
 from tools import Tools
 try: 
@@ -10,14 +10,15 @@ try:
 except: pass
 
 mac_con = macs.Macs()
-dev_con = device.Device()
+dev_con = device2.Device()
 contact_con = contact.Contact()
 mac_oui = mac.Mac()
 cache_con = cache_flow.Cache_flow()
-ports_con = ports.Ports()
+ports_con = ports2.Ports()
 mnet_con = mnet2.Mnet()
 net_con = net2.Net()
 auth_con = auth.Auth()
+auth_con.auth_enable()    #load the enable password
 
 
 decrypt=lambda x:''.join([chr(int(x[i:i+2],16)^ord('dsfd;kfoA,.iyewrkldJKDHSUBsgvca69834ncxv9873254k;fg87'[(int(x[:2])+i/2-1)%53]))for i in range(2,len(x),2)])    #http://packetstormsecurity.com/files/author/7338/
@@ -56,10 +57,14 @@ class Cli(Tools):
         self.log_file = self.path + 'log'
         self.sticky = 1    #can be set to 0 to disable level1 cli
         self.session_fail_delay = 2
+        self.session_start_delay = 1
         self.total_records = len(dev_con.search_db)
         self.total_hosts = len(dev_con.index)
         self.batch_con = batch.Batch(dev_con, self)
         self.host_list = []
+        self.dns_suffix = []
+        
+        self.test_dns_suffix()
         self.arp_start()
         self.level_0()
         
@@ -80,6 +85,9 @@ class Cli(Tools):
         
         http    get data with http(s) direct
         prohttp   get data with http(s) via proxy server
+        
+        ehealth [url user pass]   run a custom analysis of an ehealth report
+        ehealth internet   run Peter Ortlepp's internet report 
 
         """
         print "%s records loaded for %s devices" % (self.total_records, self.total_hosts)
@@ -90,8 +98,9 @@ class Cli(Tools):
         while True:
             res = raw_input(self.search_txt)
             start = time.time()
+            res_copy = res.rstrip('\n')
             res = res.rstrip('\n').lower()
-           
+
             if res:
             
                 if res == 'exit': return    #exit the program
@@ -124,9 +133,11 @@ class Cli(Tools):
                     res = ''
                     
                 if 'batch ' in res:    #perform batch operations - use batch help for extended help
-                    batch_out = self.batch_con.com(res, self.host_list)
-                    if batch_out: print batch_out
-                    res = ''
+                    try:
+                        batch_out = self.batch_con.com(res, self.host_list)
+                        if batch_out: print batch_out
+                    except: pass
+                    finally: res = ''
                     
                 if 'whois ' in res:
                     try:
@@ -135,9 +146,50 @@ class Cli(Tools):
                         http_data = net_con.get_http_proxy(url)[3]
                         #print http_data
                         self.viewwhois(http_data)
+                        ip_string = res[6:]
+                        print '\nRule to block this host on RT03PBLYINET01\nip route %s 255.255.255.255 192.0.2.1 tag 666' % ip_string
+                        send = 'echo %s| clip' % auth_con.enable_password
+                        self.send_clip(send)
                     except: pass
-                    res = ''
+                    finally: res = ''
                     
+                    
+                if 'ehealth ' in res:    #run an ehealth report conversion
+                    if 'internet' in res:    #fetch the data for Peter Ortlepp's report
+                        url = 'http://x.x.x.x/users/guest/myHealth/myHealth.csv'
+                        username = ''
+                        password = ''
+                    else: 
+                        ehealth_split = res_copy.split(' ')    #keep the char case
+                        if len(ehealth_split) != 4: 
+                            print '\n *** error *** command format is [ehealth url user pass]\n'
+                            res = ''
+                        if len(ehealth_split) == 4:
+                            url = ehealth_split[1]
+                            username = ehealth_split[2]
+                            password = ehealth_split[3]
+                            res_copy = ''
+                        
+                    if res:
+                        print '\n getting the data from ehealth server with url -', url
+                        http_data = net_con.get_http_auth(url, username, password)
+                        path = os.getcwd() + '\\'
+                        eheath_file = path + 'myHealth.csv'
+                        out_file = open(eheath_file, 'w')
+                        try:
+                            for line in http_data.read(): out_file.write(line)
+                        except: pass
+                        out_file.close()
+                        print '%s file written' % eheath_file
+                        
+                        try: reload(ehealth)
+                        except: 
+                            try: from pynet import ehealth
+                            except: pass
+                    
+                        finally: res = ''
+                        
+                
                 if 'http' in res:    #get data via http
                     try:
                         if 'prohttp' in res: http_data = net_con.get_http_proxy(res[3:])
@@ -145,10 +197,7 @@ class Cli(Tools):
                         self.view_http(http_data[3])
                         print 'status code %d    status msg %s    url %s' % (http_data[0], http_data[1], http_data[2])
                     except: pass
-                    res = ''
-                    
-                
-                        
+                    finally: res = ''
                     
                 res = self.level_7(res)    #check macthing commands in the common tools
                 
@@ -185,6 +234,15 @@ class Cli(Tools):
         @int           Command macro runs sh int desc  sh ip int brief  sh int count err  sh ip arp
                        sh ip bgp sum  sh ip route sum  sh ver | inc uptime|System|reason|cessor  
                        sh standby | inc Group|State|change|Priority\n
+        @bip           Command macro runs sh ip bgp sum | beg Neigh, sh controller vdsl 0/0/0 | inc dB|Speed|Reed|Err 
+                          and sh controller vdsl 0/1/0 | inc dB|Speed|Reed|Err\n
+        @cache        Command macro runs sh ip cache flow and reformats the output to show protocol names
+                          well know port names and decimal port numbers, also it displays in accending packet order\n
+        @mac         Command macro runs sh mac-add dyn and enters the values into a searchable mac db\n
+        @nex_mac        Command macro as @mac but for use on nexus switches\n
+        @x25        Command macro runs x25 commands\n
+        @cpu        Command macro runs cpu related command on a switch\n
+        @int        Command macro runs interface information commands\n
                        
         q              Exit session mode and return to search mode
         """
@@ -231,17 +289,18 @@ class Cli(Tools):
                 ip_address = self.ip_sub(ip_address)
                 print 'ip', ip_address ; c +=1
             
-            if 'help' in q: print self.level_1.__doc__ ; c +=1
+            if 'help' in q: 
+                print self.level_7.__doc__    #common tools
+                print self.level_1.__doc__ ; c +=1
                 
             if '@cmd' in q:
                 res = self.test_session(hostname, ip_address)
                 if res[0] != 'fail': 
                     raw = self.py_session(ip_address, hostname, res[1], self.cmd_list)
                 q = '' ; c +=1
-            
+                
             if 'vty' in q or 'tty' in q: 
-                try: self.crt_session(hostname, ip_address)
-                except: pyputty.Putty(ip_address)
+                self.vty_method(hostname, ip_address)
                 c +=1
                 
             if 'search' in q or 'q' in q or 'exit' in q: return
@@ -250,11 +309,14 @@ class Cli(Tools):
                         
             q = self.level_7(q)    #check matching commands in the common tools
             
+            if 'sh ' in q[0:3] or 'show ' in q[0:5]: q = '%' + q
+            
             if '%' in q: 
                 res = self.test_session(hostname, ip_address)
                 if res[0] != 'fail': 
                     raw = self.py_session(ip_address, hostname, res[1], q[1:])
                 q = '' ; c +=1
+                
                 
             try: 
                 ### delete stored TACACS password if not logged in using same user id
@@ -264,32 +326,44 @@ class Cli(Tools):
             c -= 1
             
             if c < 0: return
-        
-               
+             
 
     def level_7(self, res):
         """
         arp [ip mac hostname]    Display arp records\n
+        runarp    load arp report from a manually loaded source file (R++)\n
         mac [mac]    Display mac records\n
         name        Display contact db records\n
         oui [mac]  Display MAC OUI info\n
-        ports [# / name]  Display well known port info\n
-        ping x.x.x.x [:port]  Ping IP / Port\n
-        trace [ip]    Traceroute
-        scan [ip]    Port scanner
-        rlook [ip]    Reverse name lookup
-        look[host name]    name lookup
-        decrypt [cisco level 5 encrypted password]    cisco password decoder
-        cidr [ip/bits]      Subnet calculator
-        geoip x.x.x.x    GeoIP info
+        ports [# / name]  Display well known port info - search by port #, name or desc\n
+        ping x.x.x.x [:port]  Ping MAC, Nmae, IP / Port with DNS, Reverse DNS, ARP & Db lookup\n
+        trace [ip]    Traceroute\n
+        scan [ip]    Port scanner\n
+        rlook [ip]    Reverse name lookup\n
+        look[host name]    name lookup\n
+        decrypt [cisco level 5 encrypted password]    cisco password decoder\n
+        cidr [ip/bits]      Subnet calculator\n
+        geoip x.x.x.x    GeoIP info\n
+        whois x.x.x.x    Perform a whois lookup on an internet address\n
+        send x.x.x.x     send a string to a TCP port with - send 10.7.9.201 80 get\n
+        telnet / ssh x.x.x.x    connect to host by ip or domin name\n
         """
         
         if 'cmd=' in res: 
             self.cmd_list = res[4:].split(',')
             print self.cmd_list ; res = ''
         
+        if 'runarp' in res:    #load arp report from a manually loaded source file
+            try:
+                self.arp_start()
+                self.arp_con.arp_go()
+                self.arp_con.save_report()
+            except: print 'error'
+            finally: res = ''
+        
         if 'arp ' in res:    #perform a search of the historic arp db
-            self.arp_search(res[4:])
+            try: self.arp_search(res[4:])
+            except: pass
             res = ''
                 
         if 'mac ' in res:    #perform a search of the historic mac db
@@ -305,20 +379,36 @@ class Cli(Tools):
             res = ''
             
         if 'ports ' in res:    #perform a well know port lookup
-            print ports_con.find_port(res[6:])
+            ports_con.find_port(res[6:])
             res = ''
             
         if 'ping ' in res:    #perform a ping or port ping test by specifying the ip address and port if required
             self.ping_tool(res[5:])
             res = ''
             
+        if 'send ' in res:    #send a string to a TCP port with - send 10.7.9.201 80 get
+            try:
+                sres = res[5:].split(' ')
+                end = len(sres[0]) + len(sres[1]) + 7    #starting point of the command
+                print net_con.test_port(int(sres[1]), sres[0], res[end:].strip("'"))
+            except: pass
+            finally: res = ''
+            
         if 'trace ' in res:    #perform a traceroute
-            out = mnet_con.mt_trace(res[5:])
-            res = ''
+            try:
+                test = self.verify_ip(res[6:])
+                if test: 
+                    out = mnet_con.mt_trace(test[0], 35)
+            except: pass
+            finally: res = ''
             
         if 'scan ' in res:    #perfrom a port scan
-            self.view(net_con.scan(res[5:]))
-            res = ''
+            try:
+                test = self.verify_ip(res[5:])
+                if test:
+                    self.view(net_con.scan(test[0]))
+            except: pass
+            finally: res = ''
             
         if 'look ' in res:    #perfrom a reverse lookup
             con = net2.Net()
@@ -328,7 +418,7 @@ class Cli(Tools):
                     out = con.dns_look(res[5:])
                     print out, con.dns_rlook(out)
             except: pass
-            res =''
+            finally: res = ''
             
         if 'decrypt ' in res:    #cisco type 7 password decode
             print decrypt(res[8:])
@@ -339,26 +429,115 @@ class Cli(Tools):
                 net = ipcalc.Network(res[5:])
                 print ' Network:     %s\n First host:  %s\n Last host:   %s\n Broadcast:   %s\n Netmask:     %s\n Num Hosts:   %s\n' % (net.network(), net.host_first(), net.host_last(), net.broadcast(), net.netmask(), str(net.size()-2))
             except: pass
-            res = ''
+            finally: res = ''
             
         if 'geoip ' in res:    #Internet GeIP lookup
             try:
                 out = gi.record_by_addr(res[6:])
                 self.view(out)
             except: pass
-            res = ''
+            finally: res = ''
             
-        return res    #returns the original string if no match
-               
-               
+        if 'telnet ' in res:
+            try: 
+                ip_address = res[7:]
+                self.vty_method(ip_address, ip_address)
+            except: pass
+            finally: res = ''
+            
+        if 'ssh ' in res:
+            try: 
+                ip_address = res[4:]
+                self.vty_method(ip_address, ip_address)
+            except: pass
+            finally: res = ''
+            
+        return res    #returns the original string if no match          
+        
+        
+    def test_dns_suffix(self):
+        if not self.dns_suffix:
+            cfile = os.getcwd() + '\\' + 'dns_suffix'
+            rfile = open(cfile, 'rU')
+            for row in rfile:
+                if row: 
+                    suffix = row.strip('\n').rstrip().lstrip()
+                    if suffix not in self.dns_suffix: self.dns_suffix.append(suffix)
+            #print self.dns_suffix
+            
+    
+    def search_db(self, q):
+        res = dev_con.search_func(q, 1)
+        self.host_list = dev_con.host_list
+        if len(self.host_list) == 1: return dev_con.ip, dev_con.host
+        
+    
+    def verify_ip(self, ip):
+        #test if ip or host name
+        con = net2.Net()
+        res = ip.split('.')
+        
+        if len(res) == 4:
+            try: 
+                for item in res: int(item)
+                #valid IP detected
+                #perfrom a db lookup
+                res = self.search_db(ip)
+                if res: return ip, res[1]    #db search produced a unique match
+                
+                return ip, con.dns_rlook(ip)
+            except: return ip, ip
+        
+        print 'trying to resolve name %s\n' % ip
+        
+        if len(res) > 1:
+            #resolve host name using normal dns lookup with a reverse lookup to varify FQDN
+            try: 
+                rtn_ip = con.dns_look(ip)
+                return rtn_ip, con.dns_rlook(rtn_ip)
+            except: pass
+        
+            #resolve host name using normal dns lookup without reverse lookup
+            try: return con.dns_look(ip), ip
+            except: pass
+        
+        #resolve host name using dns suffix list
+        res = con.dns_look_suffix(ip, self.dns_suffix)
+        if res: 
+            print 'match on FQDN: %s\n' % res[1]
+            try: return res[0], con.dns_rlook(res[0])
+            except: return res[0], res[0]
+            
+        #perfrom a db lookup
+        res = self.search_db(ip)
+        if res: return res    #db search produced a unique match
+        
+        #perform an arp lookup
+        res = self.arp_con.search_ip(ip)
+        if res: 
+            print 'matching ARP record'
+            self.arp_search(ip)
+            ip_res = res[2].split('_')[0]
+            return ip_res, ip_res
+        
+    def vty_method(self, hostname, ip_address):
+        if hostname == ip_address:
+            res = self.verify_ip(ip_address)
+            if res:
+                ip_address = res[0]
+                hostname = res[1]
+        try: self.crt_session(hostname, ip_address)
+        except: pyputty.Putty(ip_address)
+          
+    
     def pre_session(self, res):    
         """
         Start pre made session from  self.path\Sessions\
-        Use the launch function in session.py with an empty connection_type
+        Use the launch function in session3.py with an empty connection_type
         Pass in the self.path value to keep it working with custom secure crt implementations
         """
         if len(res) > 1:
-            ses_con = session.SecureCRT(res[1:], '0.0.0.0', self.path)
+            ses_con = session3.SecureCRT(res[1:], '0.0.0.0', self.path)
             ses_con.launch()
             
             
@@ -366,7 +545,7 @@ class Cli(Tools):
         """
         Make a session for SecureCRT and launch a new CRT window
         """
-        ses_con = session.SecureCRT(hostname, ip, self.path)
+        ses_con = session3.SecureCRT(hostname, ip, self.path)
         ses_con.make()
         ses_con.launch()
         
@@ -375,16 +554,35 @@ class Cli(Tools):
         """
         Test the connection type and authentication
         """
-        ses_con = session.SecureCRT(hostname, ip, self.path)
+        ses_con = session3.SecureCRT(hostname, ip, self.path)
         return ses_con.test(), ses_con.port
     
 
     def arp_start(self):
         self.arp_con = arps.Arp()
         
+        
     def arp_search(self, res):
         """
-        Search and display historical arp records and goto level_1 if a single matching entry is found
+        Search, display and maintain historical arp records
+        """
+        key_fail = self.arp_con.display_by_key(res)
+        if not key_fail: return    #matched on a key so do not proceed to other functions
+        
+        if 'keys' in res:
+            self.arp_con.list_keys()
+            return
+            
+        if 'delete' in res:
+            self.arp_con.delete_key(res[7:])
+            return
+        
+        db_keys = self.arp_con.search_ip(res)
+        if db_keys:
+            self.arp_con.display_key_int_mac(db_keys[0], db_keys[1], db_keys[2])    #key, interface, ip_mac
+            self.arp_con.display_record(db_keys[0], db_keys[1], db_keys[2])    #key, interface, ip_mac
+        else: self.arp_con.search_ip(res, 1)    #like = 1
+        
         """
         if res: 
             view_list = self.arp_con.search_mac(res)
@@ -397,7 +595,7 @@ class Cli(Tools):
                 self.level_1(hostname, ip_address)
             else:
                 for item in view_list: print 'ARP db    ',item
-        
+        """
         
     def mac_search(self, res):
         """
@@ -414,32 +612,43 @@ class Cli(Tools):
             res = dev_con.search_func(q)
             self.host_list = dev_con.host_list
             if len(res) == 1 and self.sticky ==1:
-                ip_address = dev_con.ip
-                hostname = dev_con.host
-                self.level_1(hostname, ip_address)
+                self.ip_address = dev_con.ip
+                self.hostname = dev_con.host
+                self.level_1(self.hostname, self.ip_address)
                 
             else: return res    #return the list so it can be used for batch work
                 
                 
     def ping_tool(self, res):
-        if res:
-            if ':' in res:
-                raw = res.split(':')
-                ip_address = raw[0]
-                port = raw[1]
+        try:
+        
+            if res:
+                if ':' in res:
+                    raw = res.split(':')
+                    ip_address = raw[0].lstrip().rstrip()
+                    port = raw[1]
+                else: 
+                    ip_address = res.lstrip().rstrip()
+                    port = ''
                 
-            else: 
-                ip_address = res
-                port = ''
+                #perfrom db or dns lookup
+                test = self.verify_ip(ip_address)
+                if test: 
+                    ip_address = test[0]
+                    name = test[1]
+                    print 'Resolves to IP: %s\n\nReverse lookup of %s: %s\n' % (ip_address, ip_address, name)
+                else: 
+                    print 'unable to resolve %s' % ip_address
+                    return
                 
-            con = net2.Net(ip_address, 'ping_test')
-            
-            if port:
-                if ':80' in res: print con.test_http(80, ip_address)
-                else: print con.test_port(int(port), ip_address)
-                time.sleep(1)
+                con = net2.Net(ip_address, 'ping_test')
+                if port:
+                    if ':80' in res: print con.test_http(80, ip_address)
+                    else: print con.test_port(int(port), ip_address)
+                    time.sleep(1)
                 
-            else: con.ping(ip_address)
+                else: con.ping(ip_address)
+        except: print 'error'
             
             
     def start_http(self, protocol, url):
@@ -457,10 +666,11 @@ class Cli(Tools):
     
     def vty_session(self, ip, host, port, cmd):
         print 'command(s) to run', cmd
-        con = vty.Vty(ip, host, port, auth_con)
+        con = vty2.Vty(ip, host, port, auth_con)
         con.verbose = 0
         self.session_try = 1
         
+        time.sleep(self.session_start_delay)    #wait to ensure that test port closed down
         while self.session_try < 3:
         
             if port == 23:
@@ -478,9 +688,11 @@ class Cli(Tools):
 
             
     def session_fail(self):
-        print 'attempt %d failed' % self.session_try
-        self.session_try += 1
-        time.sleep(self.session_fail_delay)
+        try:
+            print 'attempt %d failed' % self.session_try
+            self.session_try += 1
+            time.sleep(self.session_fail_delay)
+        except: pass
             
         
     def post_session(self, out, cmd, silent=0):
