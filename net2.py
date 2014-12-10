@@ -1,4 +1,4 @@
-import socket, re, time, urllib2
+import socket, re, time, urllib2, base64
 from subprocess import Popen, PIPE
 from tools import Tools
 
@@ -240,7 +240,19 @@ class Net(Tools):
         
         except urllib2.HTTPError, e: return e.code, e.msg, e.url, e.read()
         except urllib2.URLError, e: return 0, 'url error', url, e.reason
-             
+        
+        
+    def get_http_auth(self, url, username, password):
+        """
+        direct web capture with username authentication
+        """
+        try:
+            request = urllib2.Request(url)
+            base64string = base64.encodestring('%s:%s' % (username, password)).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)
+            return urllib2.urlopen(request)
+        except urllib2.HTTPError, e: return e.code, e.msg, e.url, e.read()
+        except urllib2.URLError, e: return 0, 'url error', url, e.reason
         
         
            
