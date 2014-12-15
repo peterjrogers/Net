@@ -1,5 +1,5 @@
 import sys, time, macs, device2, contact, mac, cache_flow, arps, ports, pynet, auth
-import net2, os, mnet2, vty2, session3, batch, ipcalc, pyputty, shutil, getpass
+import net2, os, mnet2, vty, session3, batch, ipcalc, pyputty, shutil, getpass
 from subprocess import Popen, PIPE
 from tools import Tools
 try: 
