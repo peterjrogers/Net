@@ -1,5 +1,5 @@
 from super_dict2 import Super_dict
-import net2, session3, hosts, os
+import net2, session, hosts, os
 
 hosts_con = hosts.Hosts()
 
