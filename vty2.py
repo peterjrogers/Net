@@ -151,24 +151,24 @@ class Vty(Tools):
            
     ##### SSH Client #####
    
-    def ssh_init(self, ip='', port='', user='', passw=''):
+    def ssh_init(self, ip='', ports='', user='', passw=''):
         if not ip: ip = self.ip
-        if not port: port = self.port
+        if not ports: ports = self.port
         if not user: user = self.username
         if not passw: passw = self.password
         
-        self.ssh_key_load()
+        #self.ssh_key_load()
         self.ssh_banner = '\n' + self.name + '#'
        
         self.sshcon = paramiko.SSHClient()
         self.sshcon.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.sshcon.connect(ip, port, user, passw)
+        self.sshcon.connect(ip, port=ports, username=user, password=passw, allow_agent=False, look_for_keys=False)
        
        
     def ssh_cmd(self, cmd):
         stdin, stdout, stderr = self.sshcon.exec_command(cmd)
-        return stdout.readlines()
-       
+        return stdout#.readlines()
+     
        
     def ssh_exit(self):
         self.sshcon.close()
@@ -186,20 +186,18 @@ class Vty(Tools):
             if 'str' in str(type(cmd_list)): cmd_list = [cmd_list]    #convert single command str to list
             self.ssh_out = []
        
-            for item in cmd_list:
+            for cmd in cmd_list:
                 self.ssh_init()
-                res = self.ssh_cmd(item)
-                self.ssh_out.append(self.ssh_banner + item) 
-                start_out = 0
-                for item in res: 
-                    if 'prosecuted' in item: 
-                        start_out = 1
-                        continue
-                    if start_out > 0: self.ssh_out.append(item)
+                res = self.ssh_cmd(cmd)
+                self.ssh_out.append(self.ssh_banner + cmd) 
+                for line in res:
+                    line = line.strip('\r\n')
+                    self.ssh_out.append(line)
+                self.ssh_exit()
                 time.sleep(1)
                 
             if self.verbose > 0: self.view(self.ssh_out)
-            self.ssh_exit()
+            #self.ssh_exit()
 
         except: return 'failed to connect'
         
