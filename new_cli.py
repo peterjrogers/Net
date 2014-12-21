@@ -54,7 +54,7 @@ class Cli(Tools):
                 open(cfile)
             except: self.path = os.getcwd() + '\\'
         
-        self.log_file = self.path + 'log'
+        self.log_file = os.getcwd() + '\\' + 'log'
         self.sticky = 1    #can be set to 0 to disable level1 cli
         self.session_fail_delay = 2
         self.session_start_delay = 1
@@ -85,6 +85,9 @@ class Cli(Tools):
         
         http    get data with http(s) direct
         prohttp   get data with http(s) via proxy server
+        
+        ehealth [url user pass]   run a custom analysis of an ehealth report
+        ehealth internet   run Peter Ortlepp's internet report 
 
         """
         print "%s records loaded for %s devices" % (self.total_records, self.total_hosts)
@@ -95,8 +98,9 @@ class Cli(Tools):
         while True:
             res = raw_input(self.search_txt)
             start = time.time()
+            res_copy = res.rstrip('\n')
             res = res.rstrip('\n').lower()
-           
+
             if res:
             
                 if res == 'exit': return    #exit the program
@@ -129,9 +133,11 @@ class Cli(Tools):
                     res = ''
                     
                 if 'batch ' in res:    #perform batch operations - use batch help for extended help
-                    batch_out = self.batch_con.com(res, self.host_list)
-                    if batch_out: print batch_out
-                    res = ''
+                    try:
+                        batch_out = self.batch_con.com(res, self.host_list)
+                        if batch_out: print batch_out
+                    except: pass
+                    finally: res = ''
                     
                 if 'whois ' in res:
                     try:
@@ -147,6 +153,43 @@ class Cli(Tools):
                     except: pass
                     finally: res = ''
                     
+                    
+                if 'ehealth ' in res:    #run an ehealth report conversion
+                    if 'internet' in res:    #fetch the data for Peter Ortlepp's report
+                        url = 'http://22.98.33.26/users/guest/myHealth/myHealth.csv'
+                        username = 'guest'
+                        password = 'guest'
+                    else: 
+                        ehealth_split = res_copy.split(' ')    #keep the char case
+                        if len(ehealth_split) != 4: 
+                            print '\n *** error *** command format is [ehealth url user pass]\n'
+                            res = ''
+                        if len(ehealth_split) == 4:
+                            url = ehealth_split[1]
+                            username = ehealth_split[2]
+                            password = ehealth_split[3]
+                            res_copy = ''
+                        
+                    if res:
+                        print '\n getting the data from ehealth server with url -', url
+                        http_data = net_con.get_http_auth(url, username, password)
+                        path = os.getcwd() + '\\'
+                        eheath_file = path + 'myHealth.csv'
+                        out_file = open(eheath_file, 'w')
+                        try:
+                            for line in http_data.read(): out_file.write(line)
+                        except: pass
+                        out_file.close()
+                        print '%s file written' % eheath_file
+                        
+                        try: reload(ehealth)
+                        except: 
+                            try: from pynet import ehealth
+                            except: pass
+                    
+                        finally: res = ''
+                        
+                
                 if 'http' in res:    #get data via http
                     try:
                         if 'prohttp' in res: http_data = net_con.get_http_proxy(res[3:])
@@ -264,8 +307,6 @@ class Cli(Tools):
             
             if '@' in q: self.pre_session(q) ; c += 1
                         
-            q = self.level_7(q)    #check matching commands in the common tools
-            
             if 'sh ' in q[0:3] or 'show ' in q[0:5]: q = '%' + q
             
             if '%' in q: 
@@ -274,6 +315,7 @@ class Cli(Tools):
                     raw = self.py_session(ip_address, hostname, res[1], q[1:])
                 q = '' ; c +=1
                 
+            q = self.level_7(q)    #check matching commands in the common tools
                 
             try: 
                 ### delete stored TACACS password if not logged in using same user id
@@ -398,11 +440,22 @@ class Cli(Tools):
         if 'telnet ' in res:
             try: 
                 ip_address = res[7:]
-                self.vty_method(ip_address, ip_address)
+                t_path = os.getcwd() +'\\'
+                t_cmd = '%sputty -telnet %s' % (t_path, ip_address)
+                Popen(t_cmd)
             except: pass
             finally: res = ''
             
         if 'ssh ' in res:
+            try: 
+                ip_address = res[4:]
+                t_path = os.getcwd() +'\\'
+                t_cmd = '%sputty -ssh %s' % (t_path, ip_address)
+                Popen(t_cmd)
+            except: pass
+            finally: res = ''
+            
+        if 'tty ' in res or 'vty ' in res:
             try: 
                 ip_address = res[4:]
                 self.vty_method(ip_address, ip_address)
@@ -437,10 +490,10 @@ class Cli(Tools):
         if len(res) == 4:
             try: 
                 for item in res: int(item)
-                
+                #valid IP detected
                 #perfrom a db lookup
                 res = self.search_db(ip)
-                if res: return res    #db search produced a unique match
+                if res: return ip, res[1]    #db search produced a unique match
                 
                 return ip, con.dns_rlook(ip)
             except: return ip, ip
@@ -628,7 +681,7 @@ class Cli(Tools):
         self.session_try = 1
         
         time.sleep(self.session_start_delay)    #wait to ensure that test port closed down
-        while self.session_try < 3:
+        while self.session_try < 2:
         
             if port == 23:
                 res = con.telnet_go(cmd)
@@ -645,9 +698,11 @@ class Cli(Tools):
 
             
     def session_fail(self):
-        print 'attempt %d failed' % self.session_try
-        self.session_try += 1
-        time.sleep(self.session_fail_delay)
+        try:
+            print 'attempt %d failed' % self.session_try
+            self.session_try += 1
+            time.sleep(self.session_fail_delay)
+        except: pass
             
         
     def post_session(self, out, cmd, silent=0):
@@ -671,7 +726,7 @@ class Cli(Tools):
                 self.list_to_file(out, cache_con.load_file)
                 cache_con.test()
                 
-            if 'sh ip int brief' in cmd:
+            #if 'sh ip int brief' in cmd:
                 self.list_to_file(out, self.log_file, 'a')
                 
             self.list_to_file(out, self.log_file, 'a')
